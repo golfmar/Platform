@@ -1,4 +1,4 @@
-import { PrismaClient } from "./generated/prisma/client";
+import { PrismaClient } from "../src/generated/prisma";
 
 const prisma = new PrismaClient();
 
@@ -9,7 +9,6 @@ async function testConnection() {
         id: true,
         title: true,
         event_date: true,
-        // location: true,
       },
     });
     console.log("Events:", events);

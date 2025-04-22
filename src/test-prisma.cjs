@@ -36,8 +36,8 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     }
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-var client_1 = require("./generated/prisma/client");
-var prisma = new client_1.PrismaClient();
+var prisma_1 = require("./generated/prisma");
+var prisma = new prisma_1.PrismaClient();
 function testConnection() {
     return __awaiter(this, void 0, void 0, function () {
         var events, error_1;
@@ -50,7 +50,6 @@ function testConnection() {
                                 id: true,
                                 title: true,
                                 event_date: true,
-                                // location: true,
                             },
                         })];
                 case 1:

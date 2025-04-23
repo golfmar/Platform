@@ -9,10 +9,11 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const lat = parseFloat(searchParams.get("lat") || "");
     const lng = parseFloat(searchParams.get("lng") || "");
-    const radius = parseFloat(searchParams.get("radius") || "10000");
+    const radius = parseFloat(searchParams.get("radius") || "10000"); // 10 км по умолчанию
 
     let events;
-    if (lat && lng) {
+    if (lat && lng && !isNaN(lat) && !isNaN(lng)) {
+      console.log("<====filter====>", { lat, lng, radius });
       events = await prisma.$queryRaw`
         SELECT id, title, event_date, description, ST_AsText(location) as location
         FROM events

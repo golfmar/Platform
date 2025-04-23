@@ -3,10 +3,7 @@
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 
-// Динамический импорт Map
 const Map = dynamic(() => import("@/components/Map"), { ssr: false });
-
-// Динамический импорт LocationPickerMap
 const LocationPickerMap = dynamic(
   () => import("@/components/LocationPickerMap"),
   {
@@ -30,13 +27,23 @@ export default function Home() {
     event_date: "",
     description: "",
     location: "",
+    address: "",
+  });
+  const [filter, setFilter] = useState({
+    lat: "",
+    lng: "",
+    radius: "10000",
   });
 
   useEffect(() => {
     async function fetchEvents() {
       try {
         console.log("Fetching events...");
-        const response = await fetch("/api/events");
+        const params = new URLSearchParams();
+        if (filter.lat) params.append("lat", filter.lat);
+        if (filter.lng) params.append("lng", filter.lng);
+        if (filter.radius) params.append("radius", filter.radius);
+        const response = await fetch(`/api/events?${params}`);
         if (!response.ok) throw new Error("Failed to fetch events");
         const data = await response.json();
         console.log("Events fetched:", data);
@@ -47,16 +54,21 @@ export default function Home() {
       }
     }
     fetchEvents();
-  }, []);
+  }, [filter]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("<====form data====>", form);
     try {
+      console.log("<====form data====>", form);
       const response = await fetch("/api/events", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          title: form.title,
+          event_date: form.event_date,
+          description: form.description,
+          location: form.location,
+        }),
       });
       if (!response.ok) {
         const errorData = await response.json();
@@ -64,7 +76,13 @@ export default function Home() {
       }
       const newEvent = await response.json();
       setEvents([...events, newEvent]);
-      setForm({ title: "", event_date: "", description: "", location: "" });
+      setForm({
+        title: "",
+        event_date: "",
+        description: "",
+        location: "",
+        address: "",
+      });
     } catch (err: any) {
       console.error("Submit error:", err);
       setError(err.message || "Error creating event");
@@ -81,9 +99,35 @@ export default function Home() {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
+  const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFilter({ ...filter, [e.target.name]: e.target.value });
+  };
+
   const handleLocationSelect = (location: string) => {
     console.log("<====location selected====>", location);
-    setForm({ ...form, location });
+    setForm({ ...form, location, address: "" });
+  };
+
+  const handleAddressSearch = async () => {
+    if (!form.address) return;
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+          form.address
+        )}`
+      );
+      const data = await response.json();
+      if (data.length > 0) {
+        const { lat, lon } = data[0];
+        const location = `POINT(${lon} ${lat})`;
+        setForm({ ...form, location, address: form.address });
+      } else {
+        setError("Address not found");
+      }
+    } catch (err) {
+      console.error("Geocode error:", err);
+      setError("Failed to geocode address");
+    }
   };
 
   if (error) return <div>{error}</div>;
@@ -91,6 +135,41 @@ export default function Home() {
   return (
     <div style={{ padding: "20px" }}>
       <h1>Events</h1>
+
+      {/* Фильтр */}
+      <div style={{ marginBottom: "20px" }}>
+        <h2>Filter Events by Location</h2>
+        <div>
+          <label>Latitude:</label>
+          <input
+            type="text"
+            name="lat"
+            value={filter.lat}
+            onChange={handleFilterChange}
+            placeholder="e.g., 48.8566"
+          />
+        </div>
+        <div>
+          <label>Longitude:</label>
+          <input
+            type="text"
+            name="lng"
+            value={filter.lng}
+            onChange={handleFilterChange}
+            placeholder="e.g., 2.3522"
+          />
+        </div>
+        <div>
+          <label>Radius (meters):</label>
+          <input
+            type="text"
+            name="radius"
+            value={filter.radius}
+            onChange={handleFilterChange}
+            placeholder="e.g., 10000"
+          />
+        </div>
+      </div>
 
       {/* Форма */}
       <form onSubmit={handleSubmit} style={{ marginBottom: "20px" }}>
@@ -123,13 +202,27 @@ export default function Home() {
           />
         </div>
         <div>
-          <label>Location (click on map):</label>
+          <label>Location (enter address or click on map):</label>
+          <input
+            type="text"
+            name="address"
+            value={form.address}
+            onChange={handleChange}
+            placeholder="e.g., Eiffel Tower, Paris"
+          />
+          <button
+            type="button"
+            onClick={handleAddressSearch}
+            style={{ marginLeft: "10px" }}
+          >
+            Find Address
+          </button>
           <input
             type="text"
             name="location"
             value={form.location}
             readOnly
-            placeholder="Click on map to select"
+            placeholder="Coordinates will appear here"
           />
           <LocationPickerMap onLocationSelect={handleLocationSelect} />
         </div>

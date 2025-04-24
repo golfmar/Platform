@@ -1,15 +1,16 @@
 import { NextResponse } from "next/server";
 import { PrismaClient } from "@/generated/prisma";
+import jwt from "jsonwebtoken";
 
 const prisma = new PrismaClient();
+const JWT_SECRET = "your-secret-key"; // Замени на ключ в .env
 
 export async function GET(request: Request) {
-  console.log("<====GET====>");
   try {
     const { searchParams } = new URL(request.url);
     const lat = parseFloat(searchParams.get("lat") || "");
     const lng = parseFloat(searchParams.get("lng") || "");
-    const radius = parseFloat(searchParams.get("radius") || "10000"); // 10 км по умолчанию
+    const radius = parseFloat(searchParams.get("radius") || "10000");
 
     let events;
     if (lat && lng && !isNaN(lat) && !isNaN(lng)) {
@@ -44,6 +45,15 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const authHeader = request.headers.get("Authorization");
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const token = authHeader.replace("Bearer ", "");
+    const decoded = jwt.verify(token, JWT_SECRET) as { userId: number };
+    console.log("<====decoded token====>", decoded);
+
     const body = await request.json();
     console.log("<====POST body====>", body);
     const { title, event_date, description, location } = body;
@@ -60,13 +70,16 @@ export async function POST(request: Request) {
       INSERT INTO events (title, event_date, description, location, organizer_id, created_at)
       VALUES (${title}, ${new Date(
       event_date
-    )}, ${description}, ST_GeomFromText(${location}), 1, NOW())
+    )}, ${description}, ST_GeomFromText(${location}), ${decoded.userId}, NOW())
       RETURNING id, title, event_date, description, ST_AsText(location) as location
     `;
     console.log("<====created event====>", event);
     return NextResponse.json(event[0], { status: 201 });
-  } catch (error) {
+  } catch (error: any) {
     console.error("<====error====>", error);
+    if (error.name === "JsonWebTokenError") {
+      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+    }
     return NextResponse.json(
       { error: "Failed to create event" },
       { status: 500 }

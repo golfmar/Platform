@@ -16,7 +16,9 @@ export async function GET(request: Request) {
     const startDate = searchParams.get("startDate") || "";
     const endDate = searchParams.get("endDate") || "";
     const myEvents = searchParams.get("myEvents") === "true";
-    const category = searchParams.get("category") || ""; // Добавили параметр
+    const category = searchParams.get("category") || "";
+    const limit = parseInt(searchParams.get("limit") || "5"); // Добавили limit
+    const offset = parseInt(searchParams.get("offset") || "0"); // Добавили offset
     const authHeader = request.headers.get("Authorization");
 
     let userId: number | null = null;
@@ -62,7 +64,6 @@ export async function GET(request: Request) {
     }
 
     if (category) {
-      // Добавили фильтр по категории
       query += ` AND e.category = $${params.length + 1}`;
       params.push(category);
     }
@@ -71,6 +72,10 @@ export async function GET(request: Request) {
       query += ` AND e.organizer_id = $${params.length + 1}`;
       params.push(userId);
     }
+
+    // Добавили пагинацию
+    query += ` LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+    params.push(limit, offset);
 
     console.log("<====query====>", query, params);
     const events = await prisma.$queryRawUnsafe(query, ...params);
@@ -100,7 +105,7 @@ export async function POST(request: Request) {
 
     const body = await request.json();
     console.log("<====POST body====>", body);
-    const { title, event_date, description, location, category } = body; // Добавили category
+    const { title, event_date, description, location, category } = body;
 
     if (!title || !event_date || !location) {
       console.log("<====missing fields====>", { title, event_date, location });

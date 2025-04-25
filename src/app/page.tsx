@@ -21,7 +21,7 @@ interface Event {
   description: string | null;
   location: string | null;
   organizer_email: string;
-  category: string | null; // Новый атрибут
+  category: string | null;
 }
 
 const CATEGORIES = [
@@ -45,13 +45,15 @@ export default function Home() {
     endDate: "",
     myEvents: false,
     sort: "date-asc",
-    category: "", // Новый фильтр
+    category: "",
   });
   const [user, setUser] = useState<{ token: string; email: string } | null>(
     null
   );
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
   const [isCreatingEvent, setIsCreatingEvent] = useState(false);
+  const [page, setPage] = useState(1); // Добавили состояние для страницы
+  const eventsPerPage = 5; // Количество событий на странице
 
   const calculateDistance = (
     lat1: number,
@@ -85,6 +87,8 @@ export default function Home() {
         if (filter.endDate) params.append("endDate", filter.endDate);
         if (filter.myEvents) params.append("myEvents", "true");
         if (filter.category) params.append("category", filter.category);
+        params.append("limit", eventsPerPage.toString()); // Добавили limit
+        params.append("offset", ((page - 1) * eventsPerPage).toString()); // Добавили offset
         const headers: HeadersInit = {};
         if (filter.myEvents && user) {
           headers["Authorization"] = `Bearer ${user.token}`;
@@ -123,7 +127,7 @@ export default function Home() {
       }
     }
     fetchEvents();
-  }, [filter, user]);
+  }, [filter, user, page]); // Добавили page в зависимости
 
   const handleCreateEvent = async (event: {
     title: string;
@@ -153,26 +157,28 @@ export default function Home() {
       }
       const newEvent = await response.json();
       setEvents(
-        [...events, newEvent].sort((a, b) => {
-          if (filter.sort === "distance-asc" && filter.lat && filter.lng) {
-            const lat = parseFloat(filter.lat);
-            const lng = parseFloat(filter.lng);
-            if (!a.location || !b.location) return 0;
-            const matchA = a.location.match(/POINT\(([^ ]+) ([^)]+)\)/);
-            const matchB = b.location.match(/POINT\(([^ ]+) ([^)]+)\)/);
-            if (!matchA || !matchB) return 0;
-            const eventLatA = parseFloat(matchA[2]);
-            const eventLngA = parseFloat(matchA[1]);
-            const eventLatB = parseFloat(matchB[2]);
-            const eventLngB = parseFloat(matchB[1]);
-            const distA = calculateDistance(lat, lng, eventLatA, eventLngA);
-            const distB = calculateDistance(lat, lng, eventLatB, eventLngB);
-            return distA - distB;
-          }
-          const dateA = new Date(a.event_date).getTime();
-          const dateB = new Date(b.event_date).getTime();
-          return filter.sort === "date-asc" ? dateA - dateB : dateB - dateA;
-        })
+        [...events, newEvent]
+          .sort((a, b) => {
+            if (filter.sort === "distance-asc" && filter.lat && filter.lng) {
+              const lat = parseFloat(filter.lat);
+              const lng = parseFloat(filter.lng);
+              if (!a.location || !b.location) return 0;
+              const matchA = a.location.match(/POINT\(([^ ]+) ([^)]+)\)/);
+              const matchB = b.location.match(/POINT\(([^ ]+) ([^)]+)\)/);
+              if (!matchA || !matchB) return 0;
+              const eventLatA = parseFloat(matchA[2]);
+              const eventLngA = parseFloat(matchA[1]);
+              const eventLatB = parseFloat(matchB[2]);
+              const eventLngB = parseFloat(matchB[1]);
+              const distA = calculateDistance(lat, lng, eventLatA, eventLngA);
+              const distB = calculateDistance(lat, lng, eventLatB, eventLngB);
+              return distA - distB;
+            }
+            const dateA = new Date(a.event_date).getTime();
+            const dateB = new Date(b.event_date).getTime();
+            return filter.sort === "date-asc" ? dateA - dateB : dateB - dateA;
+          })
+          .slice(0, eventsPerPage) // Ограничиваем до 5 событий
       );
       toast.success("Event created successfully!");
     } catch (err: any) {
@@ -274,6 +280,7 @@ export default function Home() {
       ...filter,
       [name]: type === "checkbox" ? checked : value,
     });
+    setPage(1); // Сбрасываем на первую страницу при изменении фильтров
   };
 
   const handleRegister = async (email: string, password: string) => {
@@ -320,6 +327,15 @@ export default function Home() {
     setUser(null);
     setFilter({ ...filter, myEvents: false });
     toast.success("Logged out successfully!");
+  };
+
+  // Функции для пагинации
+  const handleNextPage = () => {
+    setPage(page + 1);
+  };
+
+  const handlePrevPage = () => {
+    if (page > 1) setPage(page - 1);
   };
 
   if (error) return <div className="text-red-500">{error}</div>;
@@ -490,36 +506,56 @@ export default function Home() {
       {events.length === 0 ? (
         <p>No events found</p>
       ) : (
-        <ul className="space-y-4">
-          {events.map((event) => (
-            <li key={event.id} className="border-b pb-2">
-              <h2 className="text-lg font-semibold">{event.title}</h2>
-              <p>Date: {new Date(event.event_date).toLocaleString()}</p>
-              <p>Category: {event.category || "None"}</p>
-              <p>Description: {event.description || "None"}</p>
-              <p>Location: {event.location || "Unknown"}</p>
-              <p className="text-sm text-gray-600">
-                Created by: {event.organizer_email}
-              </p>
-              {user && user.email === event.organizer_email && (
-                <div className="mt-2 flex space-x-2">
-                  <button
-                    onClick={() => handleEdit(event)}
-                    className="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => handleDelete(event.id)}
-                    className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600"
-                  >
-                    Delete
-                  </button>
-                </div>
-              )}
-            </li>
-          ))}
-        </ul>
+        <>
+          <ul className="space-y-4">
+            {events.map((event) => (
+              <li key={event.id} className="border-b pb-2">
+                <h2 className="text-lg font-semibold">{event.title}</h2>
+                <p>Date: {new Date(event.event_date).toLocaleString()}</p>
+                <p>Category: {event.category || "None"}</p>
+                <p>Description: {event.description || "None"}</p>
+                <p>Location: {event.location || "Unknown"}</p>
+                <p className="text-sm text-gray-600">
+                  Created by: {event.organizer_email}
+                </p>
+                {user && user.email === event.organizer_email && (
+                  <div className="mt-2 flex space-x-2">
+                    <button
+                      onClick={() => handleEdit(event)}
+                      className="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => handleDelete(event.id)}
+                      className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+          {/* Кнопки пагинации */}
+          <div className="mt-4 flex justify-between">
+            <button
+              onClick={handlePrevPage}
+              disabled={page === 1}
+              className="bg-blue-500 text-white px-4 py-2 rounded disabled:bg-gray-300 hover:bg-blue-600"
+            >
+              Previous
+            </button>
+            <span>Page {page}</span>
+            <button
+              onClick={handleNextPage}
+              disabled={events.length < eventsPerPage}
+              className="bg-blue-500 text-white px-4 py-2 rounded disabled:bg-gray-300 hover:bg-blue-600"
+            >
+              Next
+            </button>
+          </div>
+        </>
       )}
     </div>
   );

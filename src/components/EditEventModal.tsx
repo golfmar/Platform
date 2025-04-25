@@ -8,6 +8,15 @@ const LocationPickerMap = dynamic(() => import("./LocationPickerMap"), {
   ssr: false,
 });
 
+const CATEGORIES = [
+  "Concert",
+  "Exhibition",
+  "Sports",
+  "Workshop",
+  "Conference",
+  "Other",
+];
+
 interface EditEventModalProps {
   event: {
     id: number;
@@ -15,6 +24,7 @@ interface EditEventModalProps {
     event_date: string;
     description: string | null;
     location: string | null;
+    category: string | null;
   };
   onSave: (event: {
     id: number;
@@ -22,6 +32,7 @@ interface EditEventModalProps {
     event_date: string;
     description: string;
     location: string;
+    category: string;
   }) => Promise<void>;
   onClose: () => void;
 }
@@ -38,16 +49,22 @@ export default function EditEventModal({
     description: event.description || "",
     location: event.location || "",
     address: "",
+    category: event.category || "Other",
   });
 
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    >
   ) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
   const handleAddressSearch = async () => {
-    if (!form.address) return;
+    if (!form.address) {
+      toast.error("Please enter an address");
+      return;
+    }
     try {
       const response = await fetch(
         `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
@@ -81,6 +98,7 @@ export default function EditEventModal({
         event_date: form.event_date,
         description: form.description,
         location: form.location,
+        category: form.category,
       });
     } catch (err: any) {
       toast.error(err.message || "Error saving event");
@@ -102,6 +120,21 @@ export default function EditEventModal({
               required
               className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
+          </div>
+          <div>
+            <label className="block mb-1">Category:</label>
+            <select
+              name="category"
+              value={form.category}
+              onChange={handleChange}
+              className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              {CATEGORIES.map((cat) => (
+                <option key={cat} value={cat}>
+                  {cat}
+                </option>
+              ))}
+            </select>
           </div>
           <div>
             <label className="block mb-1">Date:</label>

@@ -3,7 +3,7 @@ import { PrismaClient } from "@/generated/prisma";
 import jwt from "jsonwebtoken";
 
 const prisma = new PrismaClient();
-const JWT_SECRET = process.env.JWT_SECRET || "fallback-secret";
+const JWT_SECRET = process.env.JWT_SECRET || "fallback-secret"; // Fallback только для разработки
 
 export async function GET(request: Request) {
   console.log("<====GET====>");
@@ -16,6 +16,7 @@ export async function GET(request: Request) {
     const startDate = searchParams.get("startDate") || "";
     const endDate = searchParams.get("endDate") || "";
     const myEvents = searchParams.get("myEvents") === "true";
+    const category = searchParams.get("category") || ""; // Добавили параметр
     const authHeader = request.headers.get("Authorization");
 
     let userId: number | null = null;
@@ -27,7 +28,7 @@ export async function GET(request: Request) {
     }
 
     let query = `
-      SELECT e.id, e.title, e.event_date, e.description, ST_AsText(e.location) as location, u.email as organizer_email
+      SELECT e.id, e.title, e.event_date, e.description, ST_AsText(e.location) as location, u.email as organizer_email, e.category
       FROM events e
       JOIN users u ON e.organizer_id = u.id
       WHERE 1=1
@@ -58,6 +59,12 @@ export async function GET(request: Request) {
     if (endDate) {
       query += ` AND e.event_date <= $${params.length + 1}`;
       params.push(new Date(endDate));
+    }
+
+    if (category) {
+      // Добавили фильтр по категории
+      query += ` AND e.category = $${params.length + 1}`;
+      params.push(category);
     }
 
     if (myEvents && userId) {
@@ -93,7 +100,7 @@ export async function POST(request: Request) {
 
     const body = await request.json();
     console.log("<====POST body====>", body);
-    const { title, event_date, description, location } = body;
+    const { title, event_date, description, location, category } = body; // Добавили category
 
     if (!title || !event_date || !location) {
       console.log("<====missing fields====>", { title, event_date, location });
@@ -104,13 +111,15 @@ export async function POST(request: Request) {
     }
 
     const event = await prisma.$queryRaw`
-      INSERT INTO events (title, event_date, description, location, organizer_id, created_at)
+      INSERT INTO events (title, event_date, description, location, organizer_id, created_at, category)
       VALUES (${title}, ${new Date(
       event_date
-    )}, ${description}, ST_GeomFromText(${location}), ${decoded.userId}, NOW())
+    )}, ${description}, ST_GeomFromText(${location}), ${
+      decoded.userId
+    }, NOW(), ${category || "Other"})
       RETURNING id, title, event_date, description, ST_AsText(location) as location, (
         SELECT email FROM users WHERE id = ${decoded.userId}
-      ) as organizer_email
+      ) as organizer_email, category
     `;
     console.log("<====created event====>", event);
     return NextResponse.json(event[0], { status: 201 });
@@ -121,123 +130,6 @@ export async function POST(request: Request) {
     }
     return NextResponse.json(
       { error: "Failed to create event" },
-      { status: 500 }
-    );
-  } finally {
-    await prisma.$disconnect();
-  }
-}
-
-export async function PUT(request: Request) {
-  try {
-    const authHeader = request.headers.get("Authorization");
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const token = authHeader.replace("Bearer ", "");
-    const decoded = jwt.verify(token, JWT_SECRET) as { userId: number };
-    console.log("<====decoded token====>", decoded);
-
-    const body = await request.json();
-    console.log("<====PUT body====>", body);
-    const { id, title, event_date, description, location } = body;
-
-    if (!id || !title || !event_date || !location) {
-      console.log("<====missing fields====>", {
-        id,
-        title,
-        event_date,
-        location,
-      });
-      return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 }
-      );
-    }
-
-    // Проверяем, что пользователь — создатель события
-    const eventCheck = await prisma.$queryRaw`
-      SELECT organizer_id FROM events WHERE id = ${id}
-    `;
-    if (!eventCheck || eventCheck[0]?.organizer_id !== decoded.userId) {
-      return NextResponse.json(
-        { error: "Unauthorized: You can only edit your own events" },
-        { status: 403 }
-      );
-    }
-
-    const event = await prisma.$queryRaw`
-      UPDATE events
-      SET title = ${title}, event_date = ${new Date(
-      event_date
-    )}, description = ${description}, location = ST_GeomFromText(${location})
-      WHERE id = ${id}
-      RETURNING id, title, event_date, description, ST_AsText(location) as location, (
-        SELECT email FROM users WHERE id = ${decoded.userId}
-      ) as organizer_email
-    `;
-    console.log("<====updated event====>", event);
-    return NextResponse.json(event[0], { status: 200 });
-  } catch (error: any) {
-    console.error("<====error====>", error);
-    if (error.name === "JsonWebTokenError") {
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
-    }
-    return NextResponse.json(
-      { error: "Failed to update event" },
-      { status: 500 }
-    );
-  } finally {
-    await prisma.$disconnect();
-  }
-}
-
-export async function DELETE(request: Request) {
-  try {
-    const authHeader = request.headers.get("Authorization");
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const token = authHeader.replace("Bearer ", "");
-    const decoded = jwt.verify(token, JWT_SECRET) as { userId: number };
-    console.log("<====decoded token====>", decoded);
-
-    const { id } = await request.json();
-    console.log("<====DELETE id====>", id);
-
-    if (!id) {
-      return NextResponse.json({ error: "Missing event ID" }, { status: 400 });
-    }
-
-    // Проверяем, что пользователь — создатель события
-    const eventCheck = await prisma.$queryRaw`
-      SELECT organizer_id FROM events WHERE id = ${id}
-    `;
-    if (!eventCheck || eventCheck[0]?.organizer_id !== decoded.userId) {
-      return NextResponse.json(
-        { error: "Unauthorized: You can only delete your own events" },
-        { status: 403 }
-      );
-    }
-
-    const result = await prisma.$queryRaw`
-      DELETE FROM events WHERE id = ${id}
-      RETURNING id
-    `;
-    console.log("<====deleted event====>", result);
-    if (!result || result.length === 0) {
-      return NextResponse.json({ error: "Event not found" }, { status: 404 });
-    }
-    return NextResponse.json({ message: "Event deleted" }, { status: 200 });
-  } catch (error: any) {
-    console.error("<====error====>", error);
-    if (error.name === "JsonWebTokenError") {
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
-    }
-    return NextResponse.json(
-      { error: "Failed to delete event" },
       { status: 500 }
     );
   } finally {

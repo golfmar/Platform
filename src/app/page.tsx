@@ -21,7 +21,17 @@ interface Event {
   description: string | null;
   location: string | null;
   organizer_email: string;
+  category: string | null; // Новый атрибут
 }
+
+const CATEGORIES = [
+  "Concert",
+  "Exhibition",
+  "Sports",
+  "Workshop",
+  "Conference",
+  "Other",
+];
 
 export default function Home() {
   const [events, setEvents] = useState<Event[]>([]);
@@ -35,6 +45,7 @@ export default function Home() {
     endDate: "",
     myEvents: false,
     sort: "date-asc",
+    category: "", // Новый фильтр
   });
   const [user, setUser] = useState<{ token: string; email: string } | null>(
     null
@@ -58,7 +69,7 @@ export default function Home() {
         Math.sin(dLng / 2) *
         Math.sin(dLng / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c * 1000; // В метрах
+    return R * c * 1000;
   };
 
   useEffect(() => {
@@ -73,6 +84,7 @@ export default function Home() {
         if (filter.startDate) params.append("startDate", filter.startDate);
         if (filter.endDate) params.append("endDate", filter.endDate);
         if (filter.myEvents) params.append("myEvents", "true");
+        if (filter.category) params.append("category", filter.category);
         const headers: HeadersInit = {};
         if (filter.myEvents && user) {
           headers["Authorization"] = `Bearer ${user.token}`;
@@ -118,6 +130,7 @@ export default function Home() {
     event_date: string;
     description: string;
     location: string;
+    category: string;
   }) => {
     if (!user) {
       setError("Please log in to create events");
@@ -165,7 +178,7 @@ export default function Home() {
     } catch (err: any) {
       console.error("Create error:", err);
       setError(err.message || "Error creating event");
-      throw err; // Пробрасываем ошибку для обработки в модале
+      throw err;
     }
   };
 
@@ -179,6 +192,7 @@ export default function Home() {
     event_date: string;
     description: string;
     location: string;
+    category: string;
   }) => {
     if (!user) return;
     try {
@@ -371,6 +385,22 @@ export default function Home() {
             />
           </div>
           <div>
+            <label className="block mb-1">Category:</label>
+            <select
+              name="category"
+              value={filter.category}
+              onChange={handleFilterChange}
+              className="w-full max-w-xs p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">All Categories</option>
+              {CATEGORIES.map((cat) => (
+                <option key={cat} value={cat}>
+                  {cat}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
             <label className="block mb-1">Start Date:</label>
             <input
               type="date"
@@ -465,6 +495,7 @@ export default function Home() {
             <li key={event.id} className="border-b pb-2">
               <h2 className="text-lg font-semibold">{event.title}</h2>
               <p>Date: {new Date(event.event_date).toLocaleString()}</p>
+              <p>Category: {event.category || "None"}</p>
               <p>Description: {event.description || "None"}</p>
               <p>Location: {event.location || "Unknown"}</p>
               <p className="text-sm text-gray-600">

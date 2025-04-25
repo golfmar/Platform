@@ -50,6 +50,17 @@ export default function EditEventModal({
     event.image_url
   );
 
+  // Парсим начальные координаты из form.location
+  const initialLocation = form.location
+    ? (() => {
+        const match = form.location.match(/POINT\(([^ ]+) ([^)]+)\)/);
+        if (match) {
+          return { lng: parseFloat(match[1]), lat: parseFloat(match[2]) };
+        }
+        return null;
+      })()
+    : null;
+
   useEffect(() => {
     setImagePreview(event.image_url);
   }, [event.image_url]);
@@ -124,8 +135,8 @@ export default function EditEventModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 ">
-      <div className="bg-white p-6 rounded-lg max-w-md w-full overflow-y-scroll">
+    <div className="fixed top-0 left-0 inset-0 bg-[#000000e3] bg-opacity-50 z-5000 overflow-y-scroll">
+      <div className="bg-white p-6 rounded-lg max-w-md w-full min-w-[70vw] m-auto my-6">
         <h2 className="text-xl font-semibold mb-4">Edit Event</h2>
         <form onSubmit={handleSubmit} className="space-y-3">
           <div>
@@ -223,7 +234,10 @@ export default function EditEventModal({
               placeholder="Coordinates will appear here"
               className="w-full p-2 border border-gray-300 rounded mt-2 bg-gray-100 cursor-not-allowed"
             />
-            <LocationPickerMap onLocationSelect={handleLocationSelect} />
+            <LocationPickerMap
+              onLocationSelect={handleLocationSelect}
+              initialLocation={initialLocation}
+            />
           </div>
           <div className="flex justify-end space-x-2">
             <button

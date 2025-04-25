@@ -1,51 +1,52 @@
 "use client";
 
-import { useState } from "react";
-import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
+import { useState, useEffect } from "react";
+import { MapContainer, TileLayer, Marker, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
-import L from "leaflet";
-
-// Исправление иконки маркера
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl:
-    "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-  iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-});
 
 interface LocationPickerMapProps {
   onLocationSelect: (location: string) => void;
+  initialLocation?: { lng: number; lat: number } | null;
 }
 
-function LocationPicker({ onLocationSelect }: LocationPickerMapProps) {
-  const [position, setPosition] = useState<[number, number] | null>(null);
-
-  const map = useMapEvents({
-    click(e) {
-      setPosition([e.latlng.lat, e.latlng.lng]);
-      onLocationSelect(`POINT(${e.latlng.lng} ${e.latlng.lat})`);
-      map.flyTo(e.latlng, map.getZoom());
-    },
-  });
-
-  return position ? <Marker position={position} /> : null;
+function MapUpdater({ center }: { center: [number, number] | null }) {
+  const map = useMap();
+  useEffect(() => {
+    if (center) {
+      map.setView(center, 13);
+    }
+  }, [center, map]);
+  return null;
 }
 
 export default function LocationPickerMap({
   onLocationSelect,
+  initialLocation,
 }: LocationPickerMapProps) {
+  const [position, setPosition] = useState<[number, number] | null>(
+    initialLocation ? [initialLocation.lat, initialLocation.lng] : null
+  );
+
+  const handleMapClick = (e: any) => {
+    const { lat, lng } = e.latlng;
+    setPosition([lat, lng]);
+    onLocationSelect(`POINT(${lng} ${lat})`);
+  };
+
+  const center: [number, number] = initialLocation
+    ? [initialLocation.lat, initialLocation.lng]
+    : [51.505, -0.09]; // Дефолтный центр (Лондон)
+
   return (
     <MapContainer
-      center={[48.8566, 2.3522]}
-      zoom={10}
+      center={center}
+      zoom={13}
       style={{ height: "200px", width: "100%" }}
+      onClick={handleMapClick}
     >
-      <TileLayer
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        attribution='© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-      />
-      <LocationPicker onLocationSelect={onLocationSelect} />
+      <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+      <MapUpdater center={position || center} />
+      {position && <Marker position={position} />}
     </MapContainer>
   );
 }

@@ -291,3 +291,79 @@ export async function PUT(request: Request) {
     await prisma.$disconnect();
   }
 }
+
+export async function DELETE(request: Request) {
+  try {
+    const authHeader = request.headers.get("Authorization");
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const token = authHeader.replace("Bearer ", "");
+    const decoded = jwt.verify(token, JWT_SECRET) as { userId: number };
+    console.log("<====decoded token====>", decoded);
+
+    const body = await request.json();
+    const id = parseInt(body.id);
+    if (!id) {
+      console.log("<====missing id====>", body);
+      return NextResponse.json({ error: "Missing event ID" }, { status: 400 });
+    }
+
+    // Находим событие, чтобы получить image_url
+    const event = await prisma.$queryRaw`
+      SELECT image_url
+      FROM events
+      WHERE id = ${id} AND organizer_id = ${decoded.userId}
+    `;
+    console.log("<====event to delete====>", event);
+
+    if (!event || event.length === 0) {
+      return NextResponse.json(
+        { error: "Event not found or unauthorized" },
+        { status: 404 }
+      );
+    }
+
+    // Удаляем изображение из Cloudinary, если оно есть
+    const imageUrl = event[0].image_url;
+    if (imageUrl) {
+      const publicId = imageUrl.split("/").slice(-2).join("/").split(".")[0]; // Например, "events/123456"
+      try {
+        await cloudinary.uploader.destroy(publicId);
+        console.log("<====cloudinary delete====>", publicId);
+      } catch (cloudinaryError) {
+        console.error("<====cloudinary delete error====>", cloudinaryError);
+        // Не прерываем удаление события, но логируем ошибку
+      }
+    }
+
+    // Удаляем событие из базы
+    const deletedEvent = await prisma.$queryRaw`
+      DELETE FROM events
+      WHERE id = ${id} AND organizer_id = ${decoded.userId}
+      RETURNING id
+    `;
+    console.log("<====deleted event====>", deletedEvent);
+
+    if (!deletedEvent || deletedEvent.length === 0) {
+      return NextResponse.json(
+        { error: "Event not found or unauthorized" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({ message: "Event deleted successfully" });
+  } catch (error: any) {
+    console.error("<====error====>", error);
+    if (error.name === "JsonWebTokenError") {
+      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+    }
+    return NextResponse.json(
+      { error: "Failed to delete event" },
+      { status: 500 }
+    );
+  } finally {
+    await prisma.$disconnect();
+  }
+}

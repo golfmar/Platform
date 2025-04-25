@@ -75,6 +75,12 @@ export default function Home() {
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c * 1000;
   };
+  const stopBodyScroll = () => {
+    document.body.style.overflow = "hidden";
+  };
+  const allowBodyScroll = () => {
+    document.body.style.overflow = "auto";
+  };
 
   useEffect(() => {
     async function fetchEvents() {
@@ -139,6 +145,7 @@ export default function Home() {
       return;
     }
     try {
+      stopBodyScroll();
       console.log("<====create event data====>", formData);
       const response = await fetch("/api/events", {
         method: "POST",
@@ -162,11 +169,13 @@ export default function Home() {
   };
 
   const handleEdit = (event: Event) => {
+    stopBodyScroll();
     setEditingEvent(event);
   };
 
   const handleSaveEdit = async (formData: FormData) => {
     if (!user) return;
+
     try {
       const response = await fetch("/api/events", {
         method: "PUT",
@@ -225,25 +234,58 @@ export default function Home() {
     setPage(1);
   };
 
-  const handleRegister = async (email: string, password: string) => {
-    try {
-      const response = await fetch("/api/auth", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password, action: "register" }),
-      });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Registration failed");
-      }
-      const { token } = await response.json();
-      setUser({ token, email });
-      toast.success("Registered successfully!");
-    } catch (err: any) {
-      console.error("Register error:", err);
-      toast.error(err.message || "Registration failed");
+  // const handleRegister = async (email: string, password: string) => {
+  //   try {
+  //     const response = await fetch("/api/auth", {
+  //       method: "POST",
+  //       headers: { "Content-Type": "application/json" },
+  //       body: JSON.stringify({ email, password, action: "register" }),
+  //     });
+  //     if (!response.ok) {
+  //       const errorData = await response.json();
+  //       throw new Error(errorData.error || "Registration failed");
+  //     }
+  //     const { token } = await response.json();
+  //     setUser({ token, email });
+  //     toast.success("Registered successfully!");
+  //   } catch (err: any) {
+  //     console.error("Register error:", err);
+  //     toast.error(err.message || "Registration failed");
+  //   }
+  // };
+
+  // const handleLogin = async (email: string, password: string) => {
+  //   try {
+  //     const response = await fetch("/api/auth", {
+  //       method: "POST",
+  //       headers: { "Content-Type": "application/json" },
+  //       body: JSON.stringify({ email, password, action: "login" }),
+  //     });
+  //     if (!response.ok) {
+  //       const errorData = await response.json();
+  //       throw new Error(errorData.error || "Login failed");
+  //     }
+  //     const { token } = await response.json();
+  //     setUser({ token, email });
+  //     toast.success("Logged in successfully!");
+  //   } catch (err: any) {
+  //     console.error("Login error:", err);
+  //     toast.error(err.message || "Login failed");
+  //   }
+  // };
+
+  // const handleLogout = () => {
+  //   setUser(null);
+  //   setFilter({ ...filter, myEvents: false });
+  //   toast.success("Logged out successfully!");
+  // };
+
+  useEffect(() => {
+    const savedUser = localStorage.getItem("user");
+    if (savedUser) {
+      setUser(JSON.parse(savedUser));
     }
-  };
+  }, []);
 
   const handleLogin = async (email: string, password: string) => {
     try {
@@ -257,7 +299,9 @@ export default function Home() {
         throw new Error(errorData.error || "Login failed");
       }
       const { token } = await response.json();
-      setUser({ token, email });
+      const user = { token, email };
+      setUser(user);
+      localStorage.setItem("user", JSON.stringify(user));
       toast.success("Logged in successfully!");
     } catch (err: any) {
       console.error("Login error:", err);
@@ -265,8 +309,31 @@ export default function Home() {
     }
   };
 
+  const handleRegister = async (email: string, password: string) => {
+    try {
+      const response = await fetch("/api/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password, action: "register" }),
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Registration failed");
+      }
+      const { token } = await response.json();
+      const user = { token, email };
+      setUser(user);
+      localStorage.setItem("user", JSON.stringify(user));
+      toast.success("Registered successfully!");
+    } catch (err: any) {
+      console.error("Register error:", err);
+      toast.error(err.message || "Registration failed");
+    }
+  };
+
   const handleLogout = () => {
     setUser(null);
+    localStorage.removeItem("user");
     setFilter({ ...filter, myEvents: false });
     toast.success("Logged out successfully!");
   };
@@ -293,7 +360,10 @@ export default function Home() {
           <p className="mb-2">Logged in as: {user.email}</p>
           <div className="flex space-x-2">
             <button
-              onClick={() => setIsCreatingEvent(true)}
+              onClick={() => {
+                setIsCreatingEvent(true);
+                stopBodyScroll();
+              }}
               className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
             >
               Create Event
@@ -311,7 +381,10 @@ export default function Home() {
       {isCreatingEvent && (
         <CreateEventModal
           onSave={handleCreateEvent}
-          onClose={() => setIsCreatingEvent(false)}
+          onClose={() => {
+            allowBodyScroll();
+            setIsCreatingEvent(false);
+          }}
         />
       )}
 
@@ -319,7 +392,10 @@ export default function Home() {
         <EditEventModal
           event={editingEvent}
           onSave={handleSaveEdit}
-          onClose={() => setEditingEvent(null)}
+          onClose={() => {
+            setEditingEvent(null);
+            allowBodyScroll();
+          }}
         />
       )}
 
@@ -472,7 +548,10 @@ export default function Home() {
                     {user && user.email === event.organizer_email && (
                       <div className="mt-2 flex space-x-2">
                         <button
-                          onClick={() => handleEdit(event)}
+                          onClick={() => {
+                            stopBodyScroll();
+                            handleEdit(event);
+                          }}
                           className="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600"
                         >
                           Edit

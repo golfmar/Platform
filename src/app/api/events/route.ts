@@ -9,6 +9,7 @@ export async function GET(request: Request) {
   console.log("<====GET====>");
   try {
     const { searchParams } = new URL(request.url);
+    const id = searchParams.get("id");
     const lat = parseFloat(searchParams.get("lat") || "");
     const lng = parseFloat(searchParams.get("lng") || "");
     const radius = parseFloat(searchParams.get("radius") || "10000");
@@ -17,8 +18,8 @@ export async function GET(request: Request) {
     const endDate = searchParams.get("endDate") || "";
     const myEvents = searchParams.get("myEvents") === "true";
     const category = searchParams.get("category") || "";
-    const limit = parseInt(searchParams.get("limit") || "5"); // Добавили limit
-    const offset = parseInt(searchParams.get("offset") || "0"); // Добавили offset
+    const limit = parseInt(searchParams.get("limit") || "5");
+    const offset = parseInt(searchParams.get("offset") || "0");
     const authHeader = request.headers.get("Authorization");
 
     let userId: number | null = null;
@@ -29,6 +30,31 @@ export async function GET(request: Request) {
       console.log("<====decoded token====>", decoded);
     }
 
+    if (id) {
+      // Запрос одного события по id
+      const query = `
+        SELECT e.id, e.title, e.event_date, e.description, ST_AsText(e.location) as location, u.email as organizer_email, e.category
+        FROM events e
+        JOIN users u ON e.organizer_id = u.id
+        WHERE e.id = $1
+      `;
+      const params = [parseInt(id)];
+      console.log("<====single event query====>", query, params);
+      const events = await prisma.$queryRawUnsafe(query, ...params);
+      console.log("<====single event raw====>", events);
+      if (!events || !Array.isArray(events) || events.length === 0) {
+        return NextResponse.json({ error: "Event not found" }, { status: 404 });
+      }
+      // Преобразуем event_date в ISO-строку для корректного парсинга
+      const event = {
+        ...events[0],
+        event_date: new Date(events[0].event_date).toISOString(),
+      };
+      console.log("<====single event formatted====>", event);
+      return NextResponse.json(event);
+    }
+
+    // Существующий запрос списка с пагинацией
     let query = `
       SELECT e.id, e.title, e.event_date, e.description, ST_AsText(e.location) as location, u.email as organizer_email, e.category
       FROM events e
@@ -73,14 +99,18 @@ export async function GET(request: Request) {
       params.push(userId);
     }
 
-    // Добавили пагинацию
     query += ` LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
     params.push(limit, offset);
 
     console.log("<====query====>", query, params);
     const events = await prisma.$queryRawUnsafe(query, ...params);
     console.log("<====events====>", events);
-    return NextResponse.json(events);
+    // Преобразуем event_date для списка событий
+    const formattedEvents = events.map((event: any) => ({
+      ...event,
+      event_date: new Date(event.event_date).toISOString(),
+    }));
+    return NextResponse.json(formattedEvents);
   } catch (error) {
     console.error("<====error====>", error);
     return NextResponse.json(
@@ -127,7 +157,12 @@ export async function POST(request: Request) {
       ) as organizer_email, category
     `;
     console.log("<====created event====>", event);
-    return NextResponse.json(event[0], { status: 201 });
+    // Преобразуем event_date в ISO-строку
+    const formattedEvent = {
+      ...event[0],
+      event_date: new Date(event[0].event_date).toISOString(),
+    };
+    return NextResponse.json(formattedEvent, { status: 201 });
   } catch (error: any) {
     console.error("<====error====>", error);
     if (error.name === "JsonWebTokenError") {

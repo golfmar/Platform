@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import toast, { Toaster } from "react-hot-toast";
 import AuthForm from "@/components/AuthForm";
+import Link from "next/link"; // Добавили Link
 
 const Map = dynamic(() => import("@/components/Map"), { ssr: false });
 const CreateEventModal = dynamic(
@@ -52,8 +53,8 @@ export default function Home() {
   );
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
   const [isCreatingEvent, setIsCreatingEvent] = useState(false);
-  const [page, setPage] = useState(1); // Добавили состояние для страницы
-  const eventsPerPage = 5; // Количество событий на странице
+  const [page, setPage] = useState(1);
+  const eventsPerPage = 5;
 
   const calculateDistance = (
     lat1: number,
@@ -87,8 +88,8 @@ export default function Home() {
         if (filter.endDate) params.append("endDate", filter.endDate);
         if (filter.myEvents) params.append("myEvents", "true");
         if (filter.category) params.append("category", filter.category);
-        params.append("limit", eventsPerPage.toString()); // Добавили limit
-        params.append("offset", ((page - 1) * eventsPerPage).toString()); // Добавили offset
+        params.append("limit", eventsPerPage.toString());
+        params.append("offset", ((page - 1) * eventsPerPage).toString());
         const headers: HeadersInit = {};
         if (filter.myEvents && user) {
           headers["Authorization"] = `Bearer ${user.token}`;
@@ -127,7 +128,7 @@ export default function Home() {
       }
     }
     fetchEvents();
-  }, [filter, user, page]); // Добавили page в зависимости
+  }, [filter, user, page]);
 
   const handleCreateEvent = async (event: {
     title: string;
@@ -178,7 +179,7 @@ export default function Home() {
             const dateB = new Date(b.event_date).getTime();
             return filter.sort === "date-asc" ? dateA - dateB : dateB - dateA;
           })
-          .slice(0, eventsPerPage) // Ограничиваем до 5 событий
+          .slice(0, eventsPerPage)
       );
       toast.success("Event created successfully!");
     } catch (err: any) {
@@ -280,7 +281,7 @@ export default function Home() {
       ...filter,
       [name]: type === "checkbox" ? checked : value,
     });
-    setPage(1); // Сбрасываем на первую страницу при изменении фильтров
+    setPage(1);
   };
 
   const handleRegister = async (email: string, password: string) => {
@@ -329,7 +330,6 @@ export default function Home() {
     toast.success("Logged out successfully!");
   };
 
-  // Функции для пагинации
   const handleNextPage = () => {
     setPage(page + 1);
   };
@@ -345,7 +345,6 @@ export default function Home() {
       <Toaster position="top-right" toastOptions={{ duration: 3000 }} />
       <h1 className="text-2xl font-bold mb-5">Events</h1>
 
-      {/* Авторизация */}
       {!user ? (
         <AuthForm onRegister={handleRegister} onLogin={handleLogin} />
       ) : (
@@ -368,7 +367,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* Модал создания события */}
       {isCreatingEvent && (
         <CreateEventModal
           onSave={handleCreateEvent}
@@ -376,7 +374,6 @@ export default function Home() {
         />
       )}
 
-      {/* Модал редактирования */}
       {editingEvent && (
         <EditEventModal
           event={editingEvent}
@@ -385,7 +382,6 @@ export default function Home() {
         />
       )}
 
-      {/* Фильтр */}
       <div className="mb-5">
         <h2 className="text-xl font-semibold mb-3">Filter Events</h2>
         <div className="space-y-3">
@@ -499,10 +495,8 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Карта событий */}
       <Map events={events} />
 
-      {/* Список событий */}
       {events.length === 0 ? (
         <p>No events found</p>
       ) : (
@@ -510,7 +504,14 @@ export default function Home() {
           <ul className="space-y-4">
             {events.map((event) => (
               <li key={event.id} className="border-b pb-2">
-                <h2 className="text-lg font-semibold">{event.title}</h2>
+                <h2 className="text-lg font-semibold">
+                  <Link
+                    href={`/events/${event.id}`}
+                    className="text-blue-500 hover:underline"
+                  >
+                    {event.title}
+                  </Link>
+                </h2>
                 <p>Date: {new Date(event.event_date).toLocaleString()}</p>
                 <p>Category: {event.category || "None"}</p>
                 <p>Description: {event.description || "None"}</p>
@@ -537,7 +538,6 @@ export default function Home() {
               </li>
             ))}
           </ul>
-          {/* Кнопки пагинации */}
           <div className="mt-4 flex justify-between">
             <button
               onClick={handlePrevPage}

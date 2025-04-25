@@ -4,7 +4,7 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 
 const prisma = new PrismaClient();
-const JWT_SECRET = "your-secret-key"; // Замени на .env
+const JWT_SECRET = process.env.JWT_SECRET || "fallback-secret";
 
 export async function POST(request: Request) {
   try {

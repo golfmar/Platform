@@ -1,6 +1,7 @@
 "use client";
 
-import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import { useEffect } from "react";
+import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 
@@ -31,17 +32,39 @@ const parsePoint = (point: string | null): [number, number] | null => {
     console.log("No location provided");
     return null;
   }
-  // Регулярное выражение для POINT(x y)
   const match = point.match(/POINT\((-?\d+\.?\d*)\s(-?\d+\.?\d*)\)/);
   if (!match) {
     console.log("Invalid location format:", point);
     return null;
   }
-  const lng = parseFloat(match[1]); // x = долгота
-  const lat = parseFloat(match[2]); // y = широта
+  const lng = parseFloat(match[1]);
+  const lat = parseFloat(match[2]);
   console.log("Parsed coords:", { lat, lng });
-  return [lat, lng]; // Leaflet: [lat, lng]
+  return [lat, lng];
 };
+
+// Компонент для авто-зума
+function AutoZoom({ events }: MapProps) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (events.length === 0) return;
+
+    const bounds: [number, number][] = [];
+    events.forEach((event) => {
+      const coords = parsePoint(event.location);
+      if (coords) {
+        bounds.push(coords);
+      }
+    });
+
+    if (bounds.length > 0) {
+      map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
+    }
+  }, [events, map]);
+
+  return null;
+}
 
 export default function Map({ events }: MapProps) {
   console.log("Events for map:", events);
@@ -55,6 +78,7 @@ export default function Map({ events }: MapProps) {
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         attribution='© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
       />
+      <AutoZoom events={events} />
       {events.map((event) => {
         const coords = parsePoint(event.location);
         if (!coords) return null;

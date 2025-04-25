@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 import toast from "react-hot-toast";
 
@@ -25,15 +25,9 @@ interface EditEventModalProps {
     description: string | null;
     location: string | null;
     category: string | null;
+    image_url: string | null;
   };
-  onSave: (event: {
-    id: number;
-    title: string;
-    event_date: string;
-    description: string;
-    location: string;
-    category: string;
-  }) => Promise<void>;
+  onSave: (formData: FormData) => Promise<void>;
   onClose: () => void;
 }
 
@@ -45,12 +39,20 @@ export default function EditEventModal({
   const [form, setForm] = useState({
     id: event.id,
     title: event.title,
-    event_date: new Date(event.event_date).toISOString().slice(0, 16),
+    event_date: event.event_date.slice(0, 16), // Для datetime-local
     description: event.description || "",
     location: event.location || "",
     address: "",
     category: event.category || "Other",
   });
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(
+    event.image_url
+  );
+
+  useEffect(() => {
+    setImagePreview(event.image_url);
+  }, [event.image_url]);
 
   const handleChange = (
     e: React.ChangeEvent<
@@ -58,6 +60,17 @@ export default function EditEventModal({
     >
   ) => {
     setForm({ ...form, [e.target.name]: e.target.value });
+  };
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setImageFile(file);
+      setImagePreview(URL.createObjectURL(file));
+    } else {
+      setImageFile(null);
+      setImagePreview(event.image_url);
+    }
   };
 
   const handleAddressSearch = async () => {
@@ -92,22 +105,27 @@ export default function EditEventModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await onSave({
-        id: form.id,
-        title: form.title,
-        event_date: form.event_date,
-        description: form.description,
-        location: form.location,
-        category: form.category,
-      });
+      const formData = new FormData();
+      formData.append("id", form.id.toString());
+      formData.append("title", form.title);
+      formData.append("event_date", form.event_date);
+      formData.append("description", form.description);
+      formData.append("location", form.location);
+      formData.append("category", form.category);
+      if (imageFile) {
+        formData.append("image", imageFile);
+      }
+
+      await onSave(formData);
+      onClose();
     } catch (err: any) {
-      toast.error(err.message || "Error saving event");
+      toast.error(err.message || "Error updating event");
     }
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white p-6 rounded-lg max-w-md w-full">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 ">
+      <div className="bg-white p-6 rounded-lg max-w-md w-full overflow-y-scroll">
         <h2 className="text-xl font-semibold mb-4">Edit Event</h2>
         <form onSubmit={handleSubmit} className="space-y-3">
           <div>
@@ -155,6 +173,26 @@ export default function EditEventModal({
               onChange={handleChange}
               className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[80px]"
             />
+          </div>
+          <div>
+            <label className="block mb-1">Image (optional):</label>
+            <input
+              type="file"
+              name="image"
+              accept="image/*"
+              onChange={handleImageChange}
+              className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            {imagePreview && (
+              <div className="mt-2">
+                <p className="text-sm text-gray-600">Preview:</p>
+                <img
+                  src={imagePreview}
+                  alt="Image preview"
+                  className="w-full h-40 object-cover rounded"
+                />
+              </div>
+            )}
           </div>
           <div>
             <label className="block mb-1">

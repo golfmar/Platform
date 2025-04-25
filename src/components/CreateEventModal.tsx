@@ -18,13 +18,7 @@ const CATEGORIES = [
 ];
 
 interface CreateEventModalProps {
-  onSave: (event: {
-    title: string;
-    event_date: string;
-    description: string;
-    location: string;
-    category: string;
-  }) => Promise<void>;
+  onSave: (formData: FormData) => Promise<void>;
   onClose: () => void;
 }
 
@@ -38,8 +32,10 @@ export default function CreateEventModal({
     description: "",
     location: "",
     address: "",
-    category: "Other", // Дефолтная категория
+    category: "Other",
   });
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   const handleChange = (
     e: React.ChangeEvent<
@@ -47,6 +43,17 @@ export default function CreateEventModal({
     >
   ) => {
     setForm({ ...form, [e.target.name]: e.target.value });
+  };
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setImageFile(file);
+      setImagePreview(URL.createObjectURL(file));
+    } else {
+      setImageFile(null);
+      setImagePreview(null);
+    }
   };
 
   const handleAddressSearch = async () => {
@@ -81,13 +88,17 @@ export default function CreateEventModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await onSave({
-        title: form.title,
-        event_date: form.event_date,
-        description: form.description,
-        location: form.location,
-        category: form.category,
-      });
+      const formData = new FormData();
+      formData.append("title", form.title);
+      formData.append("event_date", form.event_date);
+      formData.append("description", form.description);
+      formData.append("location", form.location);
+      formData.append("category", form.category);
+      if (imageFile) {
+        formData.append("image", imageFile);
+      }
+
+      await onSave(formData);
       onClose();
     } catch (err: any) {
       toast.error(err.message || "Error creating event");
@@ -144,6 +155,26 @@ export default function CreateEventModal({
               onChange={handleChange}
               className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[80px]"
             />
+          </div>
+          <div>
+            <label className="block mb-1">Image (optional):</label>
+            <input
+              type="file"
+              name="image"
+              accept="image/*"
+              onChange={handleImageChange}
+              className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            {imagePreview && (
+              <div className="mt-2">
+                <p className="text-sm text-gray-600">Preview:</p>
+                <img
+                  src={imagePreview}
+                  alt="Image preview"
+                  className="w-full h-40 object-cover rounded"
+                />
+              </div>
+            )}
           </div>
           <div>
             <label className="block mb-1">

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import toast, { Toaster } from "react-hot-toast";
 import AuthForm from "@/components/AuthForm";
-import Link from "next/link"; // Добавили Link
+import Link from "next/link";
 
 const Map = dynamic(() => import("@/components/Map"), { ssr: false });
 const CreateEventModal = dynamic(
@@ -23,6 +23,7 @@ interface Event {
   location: string | null;
   organizer_email: string;
   category: string | null;
+  image_url: string | null; // Добавили
 }
 
 const CATEGORIES = [
@@ -99,6 +100,7 @@ export default function Home() {
         let data = await response.json();
         console.log("Events fetched:", data);
 
+        // Сортировка на клиенте для distance-asc
         data = data.sort((a: Event, b: Event) => {
           if (filter.sort === "distance-asc" && filter.lat && filter.lng) {
             const lat = parseFloat(filter.lat);
@@ -130,57 +132,27 @@ export default function Home() {
     fetchEvents();
   }, [filter, user, page]);
 
-  const handleCreateEvent = async (event: {
-    title: string;
-    event_date: string;
-    description: string;
-    location: string;
-    category: string;
-  }) => {
+  const handleCreateEvent = async (formData: FormData) => {
     if (!user) {
       setError("Please log in to create events");
       toast.error("Please log in to create events");
       return;
     }
     try {
-      console.log("<====create event data====>", event);
+      console.log("<====create event data====>", formData);
       const response = await fetch("/api/events", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
           Authorization: `Bearer ${user.token}`,
         },
-        body: JSON.stringify(event),
+        body: formData,
       });
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || "Failed to create event");
       }
       const newEvent = await response.json();
-      setEvents(
-        [...events, newEvent]
-          .sort((a, b) => {
-            if (filter.sort === "distance-asc" && filter.lat && filter.lng) {
-              const lat = parseFloat(filter.lat);
-              const lng = parseFloat(filter.lng);
-              if (!a.location || !b.location) return 0;
-              const matchA = a.location.match(/POINT\(([^ ]+) ([^)]+)\)/);
-              const matchB = b.location.match(/POINT\(([^ ]+) ([^)]+)\)/);
-              if (!matchA || !matchB) return 0;
-              const eventLatA = parseFloat(matchA[2]);
-              const eventLngA = parseFloat(matchA[1]);
-              const eventLatB = parseFloat(matchB[2]);
-              const eventLngB = parseFloat(matchB[1]);
-              const distA = calculateDistance(lat, lng, eventLatA, eventLngA);
-              const distB = calculateDistance(lat, lng, eventLatB, eventLngB);
-              return distA - distB;
-            }
-            const dateA = new Date(a.event_date).getTime();
-            const dateB = new Date(b.event_date).getTime();
-            return filter.sort === "date-asc" ? dateA - dateB : dateB - dateA;
-          })
-          .slice(0, eventsPerPage)
-      );
+      setEvents([...events, newEvent].slice(0, eventsPerPage));
       toast.success("Event created successfully!");
     } catch (err: any) {
       console.error("Create error:", err);
@@ -193,53 +165,22 @@ export default function Home() {
     setEditingEvent(event);
   };
 
-  const handleSaveEdit = async (updatedEvent: {
-    id: number;
-    title: string;
-    event_date: string;
-    description: string;
-    location: string;
-    category: string;
-  }) => {
+  const handleSaveEdit = async (formData: FormData) => {
     if (!user) return;
     try {
       const response = await fetch("/api/events", {
         method: "PUT",
         headers: {
-          "Content-Type": "application/json",
           Authorization: `Bearer ${user.token}`,
         },
-        body: JSON.stringify(updatedEvent),
+        body: formData,
       });
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || "Failed to update event");
       }
       const savedEvent = await response.json();
-      setEvents(
-        events
-          .map((e) => (e.id === savedEvent.id ? savedEvent : e))
-          .sort((a, b) => {
-            if (filter.sort === "distance-asc" && filter.lat && filter.lng) {
-              const lat = parseFloat(filter.lat);
-              const lng = parseFloat(filter.lng);
-              if (!a.location || !b.location) return 0;
-              const matchA = a.location.match(/POINT\(([^ ]+) ([^)]+)\)/);
-              const matchB = b.location.match(/POINT\(([^ ]+) ([^)]+)\)/);
-              if (!matchA || !matchB) return 0;
-              const eventLatA = parseFloat(matchA[2]);
-              const eventLngA = parseFloat(matchA[1]);
-              const eventLatB = parseFloat(matchB[2]);
-              const eventLngB = parseFloat(matchB[1]);
-              const distA = calculateDistance(lat, lng, eventLatA, eventLngA);
-              const distB = calculateDistance(lat, lng, eventLatB, eventLngB);
-              return distA - distB;
-            }
-            const dateA = new Date(a.event_date).getTime();
-            const dateB = new Date(b.event_date).getTime();
-            return filter.sort === "date-asc" ? dateA - dateB : dateB - dateA;
-          })
-      );
+      setEvents(events.map((e) => (e.id === savedEvent.id ? savedEvent : e)));
       setEditingEvent(null);
       toast.success("Event updated successfully!");
     } catch (err: any) {
@@ -504,37 +445,48 @@ export default function Home() {
           <ul className="space-y-4">
             {events.map((event) => (
               <li key={event.id} className="border-b pb-2">
-                <h2 className="text-lg font-semibold">
-                  <Link
-                    href={`/events/${event.id}`}
-                    className="text-blue-500 hover:underline"
-                  >
-                    {event.title}
-                  </Link>
-                </h2>
-                <p>Date: {new Date(event.event_date).toLocaleString()}</p>
-                <p>Category: {event.category || "None"}</p>
-                <p>Description: {event.description || "None"}</p>
-                <p>Location: {event.location || "Unknown"}</p>
-                <p className="text-sm text-gray-600">
-                  Created by: {event.organizer_email}
-                </p>
-                {user && user.email === event.organizer_email && (
-                  <div className="mt-2 flex space-x-2">
-                    <button
-                      onClick={() => handleEdit(event)}
-                      className="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleDelete(event.id)}
-                      className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600"
-                    >
-                      Delete
-                    </button>
+                <div className="flex space-x-4">
+                  {event.image_url && (
+                    <img
+                      src={event.image_url}
+                      alt={event.title}
+                      className="w-24 h-24 object-cover rounded"
+                    />
+                  )}
+                  <div>
+                    <h2 className="text-lg font-semibold">
+                      <Link
+                        href={`/events/${event.id}`}
+                        className="text-blue-500 hover:underline"
+                      >
+                        {event.title}
+                      </Link>
+                    </h2>
+                    <p>Date: {new Date(event.event_date).toLocaleString()}</p>
+                    <p>Category: {event.category || "None"}</p>
+                    <p>Description: {event.description || "None"}</p>
+                    <p>Location: {event.location || "Unknown"}</p>
+                    <p className="text-sm text-gray-600">
+                      Created by: {event.organizer_email}
+                    </p>
+                    {user && user.email === event.organizer_email && (
+                      <div className="mt-2 flex space-x-2">
+                        <button
+                          onClick={() => handleEdit(event)}
+                          className="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDelete(event.id)}
+                          className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    )}
                   </div>
-                )}
+                </div>
               </li>
             ))}
           </ul>

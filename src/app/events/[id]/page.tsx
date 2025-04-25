@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import toast, { Toaster } from "react-hot-toast";
-import { use } from "react"; // Добавили импорт use
+import { use } from "react";
 
 const Map = dynamic(() => import("@/components/Map"), { ssr: false });
 
@@ -16,6 +16,7 @@ interface Event {
   location: string | null;
   organizer_email: string;
   category: string | null;
+  image_url: string | null; // Добавили
 }
 
 export default function EventPage({
@@ -23,8 +24,7 @@ export default function EventPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  // params теперь Promise
-  const { id } = use(params); // Распаковываем params с помощью use
+  const { id } = use(params);
   const [event, setEvent] = useState<Event | null>(null);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
@@ -46,7 +46,7 @@ export default function EventPage({
       }
     }
     fetchEvent();
-  }, [id]); // Используем id вместо params.id
+  }, [id]);
 
   if (error) return <div className="text-red-500 p-5">{error}</div>;
   if (!event) return <div className="p-5">Loading...</div>;
@@ -61,6 +61,13 @@ export default function EventPage({
         Back to Events
       </button>
       <h1 className="text-2xl font-bold mb-4">{event.title}</h1>
+      {event.image_url && (
+        <img
+          src={event.image_url}
+          alt={event.title}
+          className="w-full max-w-md h-64 object-cover rounded mb-4"
+        />
+      )}
       <div className="space-y-2">
         <p>
           <strong>Date:</strong> {new Date(event.event_date).toLocaleString()}

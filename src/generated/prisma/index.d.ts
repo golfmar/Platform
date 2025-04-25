@@ -1225,6 +1225,8 @@ export namespace Prisma {
     event_date: Date | null
     created_at: Date | null
     organizer_id: number | null
+    category: string | null
+    image_url: string | null
   }
 
   export type EventsMaxAggregateOutputType = {
@@ -1234,6 +1236,8 @@ export namespace Prisma {
     event_date: Date | null
     created_at: Date | null
     organizer_id: number | null
+    category: string | null
+    image_url: string | null
   }
 
   export type EventsCountAggregateOutputType = {
@@ -1243,6 +1247,8 @@ export namespace Prisma {
     event_date: number
     created_at: number
     organizer_id: number
+    category: number
+    image_url: number
     _all: number
   }
 
@@ -1264,6 +1270,8 @@ export namespace Prisma {
     event_date?: true
     created_at?: true
     organizer_id?: true
+    category?: true
+    image_url?: true
   }
 
   export type EventsMaxAggregateInputType = {
@@ -1273,6 +1281,8 @@ export namespace Prisma {
     event_date?: true
     created_at?: true
     organizer_id?: true
+    category?: true
+    image_url?: true
   }
 
   export type EventsCountAggregateInputType = {
@@ -1282,6 +1292,8 @@ export namespace Prisma {
     event_date?: true
     created_at?: true
     organizer_id?: true
+    category?: true
+    image_url?: true
     _all?: true
   }
 
@@ -1378,6 +1390,8 @@ export namespace Prisma {
     event_date: Date
     created_at: Date | null
     organizer_id: number
+    category: string | null
+    image_url: string | null
     _count: EventsCountAggregateOutputType | null
     _avg: EventsAvgAggregateOutputType | null
     _sum: EventsSumAggregateOutputType | null
@@ -1406,6 +1420,8 @@ export namespace Prisma {
     event_date?: boolean
     created_at?: boolean
     organizer_id?: boolean
+    category?: boolean
+    image_url?: boolean
     users?: boolean | usersDefaultArgs<ExtArgs>
     registrations?: boolean | events$registrationsArgs<ExtArgs>
     _count?: boolean | EventsCountOutputTypeDefaultArgs<ExtArgs>
@@ -1419,6 +1435,8 @@ export namespace Prisma {
     event_date?: boolean
     created_at?: boolean
     organizer_id?: boolean
+    category?: boolean
+    image_url?: boolean
     users?: boolean | usersDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["events"]>
 
@@ -1429,9 +1447,11 @@ export namespace Prisma {
     event_date?: boolean
     created_at?: boolean
     organizer_id?: boolean
+    category?: boolean
+    image_url?: boolean
   }
 
-  export type eventsOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "title" | "description" | "event_date" | "created_at" | "organizer_id", ExtArgs["result"]["events"]>
+  export type eventsOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "title" | "description" | "event_date" | "created_at" | "organizer_id" | "category" | "image_url", ExtArgs["result"]["events"]>
   export type eventsInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     users?: boolean | usersDefaultArgs<ExtArgs>
     registrations?: boolean | events$registrationsArgs<ExtArgs>
@@ -1454,6 +1474,8 @@ export namespace Prisma {
       event_date: Date
       created_at: Date | null
       organizer_id: number
+      category: string | null
+      image_url: string | null
     }, ExtArgs["result"]["events"]>
     composites: {}
   }
@@ -1814,6 +1836,8 @@ export namespace Prisma {
     readonly event_date: FieldRef<"events", 'DateTime'>
     readonly created_at: FieldRef<"events", 'DateTime'>
     readonly organizer_id: FieldRef<"events", 'Int'>
+    readonly category: FieldRef<"events", 'String'>
+    readonly image_url: FieldRef<"events", 'String'>
   }
     
 
@@ -5446,7 +5470,9 @@ export namespace Prisma {
     description: 'description',
     event_date: 'event_date',
     created_at: 'created_at',
-    organizer_id: 'organizer_id'
+    organizer_id: 'organizer_id',
+    category: 'category',
+    image_url: 'image_url'
   };
 
   export type EventsScalarFieldEnum = (typeof EventsScalarFieldEnum)[keyof typeof EventsScalarFieldEnum]
@@ -5582,6 +5608,8 @@ export namespace Prisma {
     event_date?: DateTimeFilter<"events"> | Date | string
     created_at?: DateTimeNullableFilter<"events"> | Date | string | null
     organizer_id?: IntFilter<"events"> | number
+    category?: StringNullableFilter<"events"> | string | null
+    image_url?: StringNullableFilter<"events"> | string | null
     users?: XOR<UsersScalarRelationFilter, usersWhereInput>
     registrations?: RegistrationsListRelationFilter
   }
@@ -5593,6 +5621,8 @@ export namespace Prisma {
     event_date?: SortOrder
     created_at?: SortOrderInput | SortOrder
     organizer_id?: SortOrder
+    category?: SortOrderInput | SortOrder
+    image_url?: SortOrderInput | SortOrder
     users?: usersOrderByWithRelationInput
     registrations?: registrationsOrderByRelationAggregateInput
   }
@@ -5607,6 +5637,8 @@ export namespace Prisma {
     event_date?: DateTimeFilter<"events"> | Date | string
     created_at?: DateTimeNullableFilter<"events"> | Date | string | null
     organizer_id?: IntFilter<"events"> | number
+    category?: StringNullableFilter<"events"> | string | null
+    image_url?: StringNullableFilter<"events"> | string | null
     users?: XOR<UsersScalarRelationFilter, usersWhereInput>
     registrations?: RegistrationsListRelationFilter
   }, "id">
@@ -5618,6 +5650,8 @@ export namespace Prisma {
     event_date?: SortOrder
     created_at?: SortOrderInput | SortOrder
     organizer_id?: SortOrder
+    category?: SortOrderInput | SortOrder
+    image_url?: SortOrderInput | SortOrder
     _count?: eventsCountOrderByAggregateInput
     _avg?: eventsAvgOrderByAggregateInput
     _max?: eventsMaxOrderByAggregateInput
@@ -5635,6 +5669,8 @@ export namespace Prisma {
     event_date?: DateTimeWithAggregatesFilter<"events"> | Date | string
     created_at?: DateTimeNullableWithAggregatesFilter<"events"> | Date | string | null
     organizer_id?: IntWithAggregatesFilter<"events"> | number
+    category?: StringNullableWithAggregatesFilter<"events"> | string | null
+    image_url?: StringNullableWithAggregatesFilter<"events"> | string | null
   }
 
   export type registrationsWhereInput = {
@@ -5812,6 +5848,8 @@ export namespace Prisma {
     description?: NullableStringFieldUpdateOperationsInput | string | null
     event_date?: DateTimeFieldUpdateOperationsInput | Date | string
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    category?: NullableStringFieldUpdateOperationsInput | string | null
+    image_url?: NullableStringFieldUpdateOperationsInput | string | null
     users?: usersUpdateOneRequiredWithoutEventsNestedInput
     registrations?: registrationsUpdateManyWithoutEventsNestedInput
   }
@@ -5823,6 +5861,8 @@ export namespace Prisma {
     event_date?: DateTimeFieldUpdateOperationsInput | Date | string
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     organizer_id?: IntFieldUpdateOperationsInput | number
+    category?: NullableStringFieldUpdateOperationsInput | string | null
+    image_url?: NullableStringFieldUpdateOperationsInput | string | null
     registrations?: registrationsUncheckedUpdateManyWithoutEventsNestedInput
   }
 
@@ -5831,6 +5871,8 @@ export namespace Prisma {
     description?: NullableStringFieldUpdateOperationsInput | string | null
     event_date?: DateTimeFieldUpdateOperationsInput | Date | string
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    category?: NullableStringFieldUpdateOperationsInput | string | null
+    image_url?: NullableStringFieldUpdateOperationsInput | string | null
   }
 
   export type eventsUncheckedUpdateManyInput = {
@@ -5840,6 +5882,8 @@ export namespace Prisma {
     event_date?: DateTimeFieldUpdateOperationsInput | Date | string
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     organizer_id?: IntFieldUpdateOperationsInput | number
+    category?: NullableStringFieldUpdateOperationsInput | string | null
+    image_url?: NullableStringFieldUpdateOperationsInput | string | null
   }
 
   export type registrationsCreateInput = {
@@ -6093,6 +6137,8 @@ export namespace Prisma {
     event_date?: SortOrder
     created_at?: SortOrder
     organizer_id?: SortOrder
+    category?: SortOrder
+    image_url?: SortOrder
   }
 
   export type eventsAvgOrderByAggregateInput = {
@@ -6107,6 +6153,8 @@ export namespace Prisma {
     event_date?: SortOrder
     created_at?: SortOrder
     organizer_id?: SortOrder
+    category?: SortOrder
+    image_url?: SortOrder
   }
 
   export type eventsMinOrderByAggregateInput = {
@@ -6116,6 +6164,8 @@ export namespace Prisma {
     event_date?: SortOrder
     created_at?: SortOrder
     organizer_id?: SortOrder
+    category?: SortOrder
+    image_url?: SortOrder
   }
 
   export type eventsSumOrderByAggregateInput = {
@@ -6827,6 +6877,8 @@ export namespace Prisma {
     description?: NullableStringFieldUpdateOperationsInput | string | null
     event_date?: DateTimeFieldUpdateOperationsInput | Date | string
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    category?: NullableStringFieldUpdateOperationsInput | string | null
+    image_url?: NullableStringFieldUpdateOperationsInput | string | null
     users?: usersUpdateOneRequiredWithoutEventsNestedInput
   }
 
@@ -6837,6 +6889,8 @@ export namespace Prisma {
     event_date?: DateTimeFieldUpdateOperationsInput | Date | string
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     organizer_id?: IntFieldUpdateOperationsInput | number
+    category?: NullableStringFieldUpdateOperationsInput | string | null
+    image_url?: NullableStringFieldUpdateOperationsInput | string | null
   }
 
   export type usersUpsertWithoutRegistrationsInput = {
@@ -6908,6 +6962,8 @@ export namespace Prisma {
     event_date?: DateTimeFilter<"events"> | Date | string
     created_at?: DateTimeNullableFilter<"events"> | Date | string | null
     organizer_id?: IntFilter<"events"> | number
+    category?: StringNullableFilter<"events"> | string | null
+    image_url?: StringNullableFilter<"events"> | string | null
   }
 
   export type registrationsUpsertWithWhereUniqueWithoutUsersInput = {
@@ -6960,6 +7016,8 @@ export namespace Prisma {
     description?: NullableStringFieldUpdateOperationsInput | string | null
     event_date?: DateTimeFieldUpdateOperationsInput | Date | string
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    category?: NullableStringFieldUpdateOperationsInput | string | null
+    image_url?: NullableStringFieldUpdateOperationsInput | string | null
     registrations?: registrationsUpdateManyWithoutEventsNestedInput
   }
 
@@ -6969,6 +7027,8 @@ export namespace Prisma {
     description?: NullableStringFieldUpdateOperationsInput | string | null
     event_date?: DateTimeFieldUpdateOperationsInput | Date | string
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    category?: NullableStringFieldUpdateOperationsInput | string | null
+    image_url?: NullableStringFieldUpdateOperationsInput | string | null
     registrations?: registrationsUncheckedUpdateManyWithoutEventsNestedInput
   }
 
@@ -6978,6 +7038,8 @@ export namespace Prisma {
     description?: NullableStringFieldUpdateOperationsInput | string | null
     event_date?: DateTimeFieldUpdateOperationsInput | Date | string
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    category?: NullableStringFieldUpdateOperationsInput | string | null
+    image_url?: NullableStringFieldUpdateOperationsInput | string | null
   }
 
   export type registrationsUpdateWithoutUsersInput = {

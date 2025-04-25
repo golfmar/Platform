@@ -1,7 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { MapContainer, TileLayer, Marker, useMap } from "react-leaflet";
+import {
+  MapContainer,
+  TileLayer,
+  Marker,
+  useMap,
+  useMapEvents,
+} from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 
 interface LocationPickerMapProps {
@@ -19,6 +25,19 @@ function MapUpdater({ center }: { center: [number, number] | null }) {
   return null;
 }
 
+function MapClickHandler({
+  onClick,
+}: {
+  onClick: (lat: number, lng: number) => void;
+}) {
+  useMapEvents({
+    click(e) {
+      onClick(e.latlng.lat, e.latlng.lng);
+    },
+  });
+  return null;
+}
+
 export default function LocationPickerMap({
   onLocationSelect,
   initialLocation,
@@ -27,8 +46,8 @@ export default function LocationPickerMap({
     initialLocation ? [initialLocation.lat, initialLocation.lng] : null
   );
 
-  const handleMapClick = (e: any) => {
-    const { lat, lng } = e.latlng;
+  const handleMapClick = (lat: number, lng: number) => {
+    console.log("Map clicked:", { lat, lng }); // Для дебага
     setPosition([lat, lng]);
     onLocationSelect(`POINT(${lng} ${lat})`);
   };
@@ -42,10 +61,10 @@ export default function LocationPickerMap({
       center={center}
       zoom={13}
       style={{ height: "200px", width: "100%" }}
-      onClick={handleMapClick}
     >
       <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
       <MapUpdater center={position || center} />
+      <MapClickHandler onClick={handleMapClick} />
       {position && <Marker position={position} />}
     </MapContainer>
   );

@@ -5,11 +5,14 @@ import dynamic from "next/dynamic";
 import toast, { Toaster } from "react-hot-toast";
 import AuthForm from "@/components/AuthForm";
 import Link from "next/link";
+import Pagination from "@/components/Pagination";
 
 const Map = dynamic(() => import("@/components/Map"), { ssr: false });
 const CreateEventModal = dynamic(
   () => import("@/components/CreateEventModal"),
-  { ssr: false }
+  {
+    ssr: false,
+  }
 );
 const EditEventModal = dynamic(() => import("@/components/EditEventModal"), {
   ssr: false,
@@ -23,7 +26,7 @@ interface Event {
   location: string | null;
   organizer_email: string;
   category: string | null;
-  image_url: string | null; // Добавили
+  image_url: string | null;
 }
 
 const CATEGORIES = [
@@ -47,7 +50,7 @@ export default function Home() {
     endDate: "",
     myEvents: false,
     sort: "date-asc",
-    category: "",
+    category: "", // Пустая строка = All Categories
   });
   const [user, setUser] = useState<{ token: string; email: string } | null>(
     null
@@ -75,6 +78,7 @@ export default function Home() {
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c * 1000;
   };
+
   const stopBodyScroll = () => {
     document.body.style.overflow = "hidden";
   };
@@ -85,7 +89,7 @@ export default function Home() {
   useEffect(() => {
     async function fetchEvents() {
       try {
-        console.log("Fetching events...");
+        console.log("Fetching events with filter:", filter);
         const params = new URLSearchParams();
         if (filter.lat) params.append("lat", filter.lat);
         if (filter.lng) params.append("lng", filter.lng);
@@ -94,7 +98,8 @@ export default function Home() {
         if (filter.startDate) params.append("startDate", filter.startDate);
         if (filter.endDate) params.append("endDate", filter.endDate);
         if (filter.myEvents) params.append("myEvents", "true");
-        if (filter.category) params.append("category", filter.category);
+        // Отправляем category даже если пустое, чтобы API знал, что это "все категории"
+        params.append("category", filter.category || "");
         params.append("limit", eventsPerPage.toString());
         params.append("offset", ((page - 1) * eventsPerPage).toString());
         const headers: HeadersInit = {};
@@ -175,7 +180,6 @@ export default function Home() {
 
   const handleSaveEdit = async (formData: FormData) => {
     if (!user) return;
-
     try {
       const response = await fetch("/api/events", {
         method: "PUT",
@@ -234,52 +238,6 @@ export default function Home() {
     setPage(1);
   };
 
-  // const handleRegister = async (email: string, password: string) => {
-  //   try {
-  //     const response = await fetch("/api/auth", {
-  //       method: "POST",
-  //       headers: { "Content-Type": "application/json" },
-  //       body: JSON.stringify({ email, password, action: "register" }),
-  //     });
-  //     if (!response.ok) {
-  //       const errorData = await response.json();
-  //       throw new Error(errorData.error || "Registration failed");
-  //     }
-  //     const { token } = await response.json();
-  //     setUser({ token, email });
-  //     toast.success("Registered successfully!");
-  //   } catch (err: any) {
-  //     console.error("Register error:", err);
-  //     toast.error(err.message || "Registration failed");
-  //   }
-  // };
-
-  // const handleLogin = async (email: string, password: string) => {
-  //   try {
-  //     const response = await fetch("/api/auth", {
-  //       method: "POST",
-  //       headers: { "Content-Type": "application/json" },
-  //       body: JSON.stringify({ email, password, action: "login" }),
-  //     });
-  //     if (!response.ok) {
-  //       const errorData = await response.json();
-  //       throw new Error(errorData.error || "Login failed");
-  //     }
-  //     const { token } = await response.json();
-  //     setUser({ token, email });
-  //     toast.success("Logged in successfully!");
-  //   } catch (err: any) {
-  //     console.error("Login error:", err);
-  //     toast.error(err.message || "Login failed");
-  //   }
-  // };
-
-  // const handleLogout = () => {
-  //   setUser(null);
-  //   setFilter({ ...filter, myEvents: false });
-  //   toast.success("Logged out successfully!");
-  // };
-
   useEffect(() => {
     const savedUser = localStorage.getItem("user");
     if (savedUser) {
@@ -336,14 +294,6 @@ export default function Home() {
     localStorage.removeItem("user");
     setFilter({ ...filter, myEvents: false });
     toast.success("Logged out successfully!");
-  };
-
-  const handleNextPage = () => {
-    setPage(page + 1);
-  };
-
-  const handlePrevPage = () => {
-    if (page > 1) setPage(page - 1);
   };
 
   if (error) return <div className="text-red-500">{error}</div>;
@@ -569,23 +519,12 @@ export default function Home() {
               </li>
             ))}
           </ul>
-          <div className="mt-4 flex justify-between">
-            <button
-              onClick={handlePrevPage}
-              disabled={page === 1}
-              className="bg-blue-500 text-white px-4 py-2 rounded disabled:bg-gray-300 hover:bg-blue-600"
-            >
-              Previous
-            </button>
-            <span>Page {page}</span>
-            <button
-              onClick={handleNextPage}
-              disabled={events.length < eventsPerPage}
-              className="bg-blue-500 text-white px-4 py-2 rounded disabled:bg-gray-300 hover:bg-blue-600"
-            >
-              Next
-            </button>
-          </div>
+          <Pagination
+            page={page}
+            setPage={setPage}
+            events={events}
+            eventsPerPage={eventsPerPage}
+          />
         </>
       )}
     </div>

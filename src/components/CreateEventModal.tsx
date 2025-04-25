@@ -8,16 +8,8 @@ const LocationPickerMap = dynamic(() => import("./LocationPickerMap"), {
   ssr: false,
 });
 
-interface EditEventModalProps {
-  event: {
-    id: number;
-    title: string;
-    event_date: string;
-    description: string | null;
-    location: string | null;
-  };
+interface CreateEventModalProps {
   onSave: (event: {
-    id: number;
     title: string;
     event_date: string;
     description: string;
@@ -26,17 +18,15 @@ interface EditEventModalProps {
   onClose: () => void;
 }
 
-export default function EditEventModal({
-  event,
+export default function CreateEventModal({
   onSave,
   onClose,
-}: EditEventModalProps) {
+}: CreateEventModalProps) {
   const [form, setForm] = useState({
-    id: event.id,
-    title: event.title,
-    event_date: new Date(event.event_date).toISOString().slice(0, 16),
-    description: event.description || "",
-    location: event.location || "",
+    title: "",
+    event_date: "",
+    description: "",
+    location: "",
     address: "",
   });
 
@@ -47,7 +37,10 @@ export default function EditEventModal({
   };
 
   const handleAddressSearch = async () => {
-    if (!form.address) return;
+    if (!form.address) {
+      toast.error("Please enter an address");
+      return;
+    }
     try {
       const response = await fetch(
         `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
@@ -76,21 +69,21 @@ export default function EditEventModal({
     e.preventDefault();
     try {
       await onSave({
-        id: form.id,
         title: form.title,
         event_date: form.event_date,
         description: form.description,
         location: form.location,
       });
+      onClose();
     } catch (err: any) {
-      toast.error(err.message || "Error saving event");
+      toast.error(err.message || "Error creating event");
     }
   };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white p-6 rounded-lg max-w-md w-full">
-        <h2 className="text-xl font-semibold mb-4">Edit Event</h2>
+        <h2 className="text-xl font-semibold mb-4">Create Event</h2>
         <form onSubmit={handleSubmit} className="space-y-3">
           <div>
             <label className="block mb-1">Title:</label>
@@ -166,7 +159,7 @@ export default function EditEventModal({
               type="submit"
               className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
             >
-              Save
+              Create
             </button>
           </div>
         </form>

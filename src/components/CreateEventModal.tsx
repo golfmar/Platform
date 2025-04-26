@@ -40,7 +40,7 @@ export default function CreateEventModal({
   });
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [isSearching, setIsSearching] = useState(false); // Для индикатора загрузки
+  const [isSearching, setIsSearching] = useState(false);
 
   const handleChange = (
     e: React.ChangeEvent<
@@ -51,16 +51,12 @@ export default function CreateEventModal({
   };
 
   const handleDateChange = (date: Date) => {
-    const formattedDate = date
-      .toLocaleDateString("de-DE", {
-        timeZone: "Europe/Berlin",
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-      })
-      .split(".")
-      .reverse()
-      .join("-");
+    const formattedDate = date.toLocaleDateString("en-CA", {
+      timeZone: "Europe/Berlin",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
     setForm({ ...form, event_date: formattedDate });
   };
 
@@ -77,7 +73,7 @@ export default function CreateEventModal({
 
   const handleAddressSearch = async () => {
     if (!form.address) {
-      toast.error("Bitte geben Sie eine Adresse ein");
+      toast.error("Please enter an address");
       return;
     }
     setIsSearching(true);
@@ -92,13 +88,13 @@ export default function CreateEventModal({
         const { lat, lon, display_name } = data[0];
         const location = `POINT(${lon} ${lat})`;
         setForm({ ...form, location, address: display_name });
-        toast.success("Adresse gefunden!");
+        toast.success("Address found!");
       } else {
-        toast.error("Adresse nicht gefunden");
+        toast.error("Address not found");
       }
     } catch (err: any) {
       console.error("Geocode error:", err);
-      toast.error("Fehler beim Suchen der Adresse");
+      toast.error("Error searching for address");
     } finally {
       setIsSearching(false);
     }
@@ -131,13 +127,13 @@ export default function CreateEventModal({
   return (
     <div className="fixed top-0 left-0 inset-0 bg-[#000000e3] bg-opacity-50 z-5000 overflow-y-scroll">
       <div className="bg-white p-6 rounded-lg max-w-md w-full min-w-[70vw] m-auto my-6">
-        <h2 className="text-xl font-semibold mb-4">Veranstaltung erstellen</h2>
+        <h2 className="text-xl font-semibold mb-4">Create Event</h2>
         <form onSubmit={handleSubmit} className="space-y-3">
           <div>
             <Input
               id="title"
               typeInput="text"
-              data="Titel:"
+              data="Title:"
               value={form.title}
               onChange={handleChange}
               name="title"
@@ -145,7 +141,7 @@ export default function CreateEventModal({
             />
           </div>
           <div>
-            <label className="block mb-1">Kategorie:</label>
+            <label className="block mb-1">Category:</label>
             <Select
               selectItems={CATEGORIES}
               value={form.category}
@@ -154,12 +150,12 @@ export default function CreateEventModal({
           </div>
           <div>
             <label className="block mb-1">
-              Datum: {form.event_date && <span>{form.event_date}</span>}
+              Date: {form.event_date && <span>{form.event_date}</span>}
             </label>
             <Calendar handleDateChange={handleDateChange} />
           </div>
           <div>
-            <label className="block mb-1">Beschreibung:</label>
+            <label className="block mb-1">Description:</label>
             <textarea
               name="description"
               value={form.description}
@@ -168,7 +164,7 @@ export default function CreateEventModal({
             />
           </div>
           <div>
-            <label className="block mb-1">Bild (optional):</label>
+            <label className="block mb-1">Image (optional):</label>
             <input
               type="file"
               name="image"
@@ -208,12 +204,11 @@ export default function CreateEventModal({
           </div>
           <div>
             <label className="block mb-1">
-              Ort (Adresse eingeben oder auf der Karte wählen):
+              Location (enter address or pick on map):
             </label>
             <p className="text-sm text-gray-600 mb-1">
-              Geben Sie eine Adresse ein (z.B. "Brandenburger Tor, Berlin") und
-              klicken Sie auf "Adresse suchen", oder wählen Sie einen Punkt auf
-              der Karte unten.
+              Enter an address (e.g. "Brandenburg Gate, Berlin") and click
+              "Search address", or pick a location on the map below.
             </p>
             <div className="flex items-center">
               <input
@@ -221,7 +216,7 @@ export default function CreateEventModal({
                 name="address"
                 value={form.address}
                 onChange={handleChange}
-                placeholder="z.B. Brandenburger Tor, Berlin"
+                placeholder="e.g. Brandenburg Gate, Berlin"
                 className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               <button
@@ -252,7 +247,7 @@ export default function CreateEventModal({
                     />
                   </svg>
                 ) : null}
-                Adresse suchen
+                Search address
               </button>
             </div>
             <input
@@ -260,7 +255,7 @@ export default function CreateEventModal({
               name="location"
               value={form.location}
               readOnly
-              placeholder="Koordinaten erscheinen hier (z.B. POINT(13.37 52.51))"
+              placeholder="Coordinates will appear here (e.g. POINT(13.37 52.51))"
               className="w-full p-2 border border-gray-300 rounded mt-2 bg-gray-100 cursor-not-allowed"
             />
             <LocationPickerMap onLocationSelect={handleLocationSelect} />
@@ -271,13 +266,13 @@ export default function CreateEventModal({
               onClick={onClose}
               className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
             >
-              Abbrechen
+              Cancel
             </button>
             <button
               type="submit"
               className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
             >
-              Erstellen
+              Create
             </button>
           </div>
         </form>

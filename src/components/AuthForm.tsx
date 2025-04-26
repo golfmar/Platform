@@ -44,24 +44,16 @@ export default function AuthForm({ onRegister, onLogin }: AuthFormProps) {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
-        <div className="flex flex-col items-center">
-          <Button
-            type="submit"
+        <Button type="submit" buttonText={isLogin ? "Login" : "Register"} />
+        <div className="text-center mt-2 text-sm text-gray-500">
+          {isLogin ? "Don't have an account?" : "Already have an account?"}{" "}
+          <button
+            type="button"
             onClick={() => setIsLogin(!isLogin)}
-            buttonText={isLogin ? "Login" : "Register"}
-          />
-          <div>
-            {isLogin
-              ? "Don't have an account yet?"
-              : "Do you already have an account?"}
-            <button
-              type="button"
-              onClick={() => setIsLogin(!isLogin)}
-              className=" text-gray-400 ml-4 text-sm   mt-2"
-            >
-              Switch to {isLogin ? "Register" : "Login"}
-            </button>
-          </div>
+            className="text-blue-500 hover:underline ml-1"
+          >
+            Switch to {isLogin ? "Register" : "Login"}
+          </button>
         </div>
       </form>
       {error && <p style={{ color: "red" }}>{error}</p>}

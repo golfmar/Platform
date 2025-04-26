@@ -5,6 +5,8 @@ import dynamic from "next/dynamic";
 import toast from "react-hot-toast";
 import Input from "./ui/Input/Input";
 import Select from "./ui/Select/Select";
+import Calendar from "./ui/Calendar/Calendar";
+import Image from "next/image";
 
 const LocationPickerMap = dynamic(() => import("./LocationPickerMap"), {
   ssr: false,
@@ -38,6 +40,7 @@ export default function CreateEventModal({
   });
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [isSearching, setIsSearching] = useState(false); // Для индикатора загрузки
 
   const handleChange = (
     e: React.ChangeEvent<
@@ -45,6 +48,20 @@ export default function CreateEventModal({
     >
   ) => {
     setForm({ ...form, [e.target.name]: e.target.value });
+  };
+
+  const handleDateChange = (date: Date) => {
+    const formattedDate = date
+      .toLocaleDateString("de-DE", {
+        timeZone: "Europe/Berlin",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      })
+      .split(".")
+      .reverse()
+      .join("-");
+    setForm({ ...form, event_date: formattedDate });
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -60,9 +77,10 @@ export default function CreateEventModal({
 
   const handleAddressSearch = async () => {
     if (!form.address) {
-      toast.error("Please enter an address");
+      toast.error("Bitte geben Sie eine Adresse ein");
       return;
     }
+    setIsSearching(true);
     try {
       const response = await fetch(
         `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
@@ -71,15 +89,18 @@ export default function CreateEventModal({
       );
       const data = await response.json();
       if (data.length > 0) {
-        const { lat, lon } = data[0];
+        const { lat, lon, display_name } = data[0];
         const location = `POINT(${lon} ${lat})`;
-        setForm({ ...form, location, address: form.address });
+        setForm({ ...form, location, address: display_name });
+        toast.success("Adresse gefunden!");
       } else {
-        toast.error("Address not found");
+        toast.error("Adresse nicht gefunden");
       }
     } catch (err: any) {
       console.error("Geocode error:", err);
-      toast.error("Failed to geocode address");
+      toast.error("Fehler beim Suchen der Adresse");
+    } finally {
+      setIsSearching(false);
     }
   };
 
@@ -108,24 +129,15 @@ export default function CreateEventModal({
   };
 
   return (
-    <div className="fixed top-0 left-0  inset-0 bg-[#000000e3] bg-opacity-50   z-5000  overflow-y-scroll">
+    <div className="fixed top-0 left-0 inset-0 bg-[#000000e3] bg-opacity-50 z-5000 overflow-y-scroll">
       <div className="bg-white p-6 rounded-lg max-w-md w-full min-w-[70vw] m-auto my-6">
-        <h2 className="text-xl font-semibold mb-4">Create Event</h2>
+        <h2 className="text-xl font-semibold mb-4">Veranstaltung erstellen</h2>
         <form onSubmit={handleSubmit} className="space-y-3">
           <div>
-            {/* <label className="block mb-1">Title:</label>
-            <input
-              type="text"
-              name="title"
-              value={form.title}
-              onChange={handleChange}
-              required
-              className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-            /> */}
             <Input
               id="title"
               typeInput="text"
-              data="Title:"
+              data="Titel:"
               value={form.title}
               onChange={handleChange}
               name="title"
@@ -133,7 +145,7 @@ export default function CreateEventModal({
             />
           </div>
           <div>
-            <label className="block mb-1">Category:</label>
+            <label className="block mb-1">Kategorie:</label>
             <Select
               selectItems={CATEGORIES}
               value={form.category}
@@ -141,18 +153,20 @@ export default function CreateEventModal({
             />
           </div>
           <div>
-            <label className="block mb-1">Date:</label>
-            <input
-              type="datetime-local"
+            <label className="block mb-1">Datum:</label>
+            {/* <input
+              type="date"
               name="event_date"
               value={form.event_date}
               onChange={handleChange}
               required
               className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
+            {form.event_date && <p>Ausgewählt: {form.event_date}</p>} */}
+            <Calendar handleDateChange={handleDateChange} />
           </div>
           <div>
-            <label className="block mb-1">Description:</label>
+            <label className="block mb-1">Beschreibung:</label>
             <textarea
               name="description"
               value={form.description}
@@ -161,44 +175,91 @@ export default function CreateEventModal({
             />
           </div>
           <div>
-            <label className="block mb-1">Image (optional):</label>
+            <label className="block mb-1">Bild (optional):</label>
             <input
               type="file"
               name="image"
               accept="image/*"
               onChange={handleImageChange}
-              className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="hidden"
+              id="imageInput"
             />
+            <label htmlFor="imageInput" className="cursor-pointer">
+              <Image
+                src={"/assets/svg/images.svg"}
+                alt="Image preview"
+                width={40}
+                height={40}
+              />
+            </label>
             {imagePreview && (
               <div className="mt-2">
                 <p className="text-sm text-gray-600">Preview:</p>
                 <img
                   src={imagePreview}
                   alt="Image preview"
-                  className="w-full h-40 object-cover rounded"
+                  className="w-full max-w-[300px] max-h-[200px] h-auto object-contain rounded"
                 />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setImageFile(null);
+                    setImagePreview(null);
+                  }}
+                  className="mt-1 text-sm text-red-500 hover:text-red-700"
+                >
+                  Remove Image
+                </button>
               </div>
             )}
           </div>
           <div>
             <label className="block mb-1">
-              Location (enter address or click on map):
+              Ort (Adresse eingeben oder auf der Karte wählen):
             </label>
+            <p className="text-sm text-gray-600 mb-1">
+              Geben Sie eine Adresse ein (z.B. "Brandenburger Tor, Berlin") und
+              klicken Sie auf "Adresse suchen", oder wählen Sie einen Punkt auf
+              der Karte unten.
+            </p>
             <div className="flex items-center">
               <input
                 type="text"
                 name="address"
                 value={form.address}
                 onChange={handleChange}
-                placeholder="e.g., Eiffel Tower, Paris"
+                placeholder="z.B. Brandenburger Tor, Berlin"
                 className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               <button
                 type="button"
                 onClick={handleAddressSearch}
-                className="ml-2 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+                disabled={isSearching}
+                className={`ml-2 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 flex items-center ${
+                  isSearching ? "opacity-50 cursor-not-allowed" : ""
+                }`}
               >
-                Find Address
+                {isSearching ? (
+                  <svg
+                    className="animate-spin h-5 w-5 mr-2 text-white"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8v8h8a8 8 0 01-16 0z"
+                    />
+                  </svg>
+                ) : null}
+                Adresse suchen
               </button>
             </div>
             <input
@@ -206,7 +267,7 @@ export default function CreateEventModal({
               name="location"
               value={form.location}
               readOnly
-              placeholder="Coordinates will appear here"
+              placeholder="Koordinaten erscheinen hier (z.B. POINT(13.37 52.51))"
               className="w-full p-2 border border-gray-300 rounded mt-2 bg-gray-100 cursor-not-allowed"
             />
             <LocationPickerMap onLocationSelect={handleLocationSelect} />
@@ -217,13 +278,13 @@ export default function CreateEventModal({
               onClick={onClose}
               className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
             >
-              Cancel
+              Abbrechen
             </button>
             <button
               type="submit"
               className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
             >
-              Create
+              Erstellen
             </button>
           </div>
         </form>

@@ -1,13 +1,11 @@
 "use client";
+
 import React, { useState, useEffect } from "react";
 import styles from "./Calendar.module.scss";
 import ModalMessage from "@/components/ModalMessage/ModalMessage";
+
 interface CalendarProps {
-  handleDateChange?: (date: Date) => void;
-  resetTrigger?: number;
-  setFinishDate?: (date: Date) => void;
-  shouldReset?: boolean;
-  onResetComplete?: () => void;
+  handleDateChange: (date: Date) => void;
 }
 
 const weekdays: string[] = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
@@ -26,52 +24,43 @@ const months: string[] = [
   "Dezember",
 ];
 
-const Calendar: React.FC<CalendarProps> = ({
-  handleDateChange,
-  setFinishDate,
-  shouldReset,
-  onResetComplete,
-}) => {
+const Calendar: React.FC<CalendarProps> = ({ handleDateChange }) => {
   const [successMessage, setSuccessMessage] = useState<string>("");
   const [openModalMessage, setOpenModalMessage] = useState<boolean>(false);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
+
   const validateAndSetDate = (date: Date) => {
-    const now = new Date();
-    const selected = new Date(date.setHours(0, 0, 0, 0));
-    const today = new Date(now.setHours(0, 0, 0, 0));
+    // Устанавливаем дату в немецком часовом поясе
+    const now = new Date().toLocaleString("en-US", {
+      timeZone: "Europe/Berlin",
+    });
+    const selected = new Date(
+      date.toLocaleString("en-US", { timeZone: "Europe/Berlin" })
+    );
+    selected.setHours(0, 0, 0, 0);
+    const today = new Date(now);
+    today.setHours(0, 0, 0, 0);
+
     if (selected < today) {
       setSuccessMessage("Date must be in the future!");
       setOpenModalMessage(true);
-      setSelectedDate(new Date());
+      const newDate = new Date(today);
+      setSelectedDate(newDate);
       setTimeout(() => {
         setSuccessMessage("");
         setOpenModalMessage(false);
       }, 2000);
-      if (handleDateChange) handleDateChange(new Date());
-      if (setFinishDate) setFinishDate(new Date());
+      handleDateChange(newDate);
     } else {
       setSelectedDate(date);
-      if (handleDateChange) handleDateChange(date);
-      if (setFinishDate) setFinishDate(date);
+      handleDateChange(date);
     }
   };
-  useEffect(() => {
-    if (shouldReset) {
-      const today = new Date();
-      setSelectedDate(today);
-      setCurrentDate(today);
-      if (setFinishDate) setFinishDate(today);
-      if (onResetComplete) onResetComplete();
-    }
-  }, [shouldReset, setFinishDate, onResetComplete]);
+
   useEffect(() => {
     validateAndSetDate(selectedDate);
-  }, [selectedDate, handleDateChange, setFinishDate]);
-  // useEffect(() => {
-  //   if (handleDateChange) handleDateChange(selectedDate);
-  //   if (setFinishDate) setFinishDate(selectedDate);
-  // }, [selectedDate, handleDateChange, setFinishDate]);
+  }, [selectedDate]);
 
   const getDaysInMonth = (date: Date): (number | null)[] => {
     const year = date.getFullYear();
@@ -99,8 +88,7 @@ const Calendar: React.FC<CalendarProps> = ({
       const year = currentDate.getFullYear();
       const month = currentDate.getMonth();
       const newDate = new Date(year, month, day);
-      setSelectedDate(newDate);
-      if (handleDateChange) handleDateChange(newDate);
+      validateAndSetDate(newDate);
     }
   };
 
@@ -121,13 +109,6 @@ const Calendar: React.FC<CalendarProps> = ({
   return (
     <>
       <ModalMessage message={successMessage} open={openModalMessage} />
-      {/* <h5>
-        Current Date: {new Date(currentDate).toLocaleString().slice(0, 10)}
-      </h5>
-      <h5>
-        Selected Date: {new Date(selectedDate).toLocaleString().slice(0, 10)}
-      </h5> */}
-
       <div className={`${styles["calendar"]} ${styles["rel"]}`}>
         <div className={`${styles["calendar-header"]}`}>
           <button
@@ -173,7 +154,8 @@ const Calendar: React.FC<CalendarProps> = ({
               key={index}
               className={`${styles["calendar-day"]} ${
                 day === selectedDate.getDate() &&
-                currentDate.getMonth() === selectedDate.getMonth()
+                currentDate.getMonth() === selectedDate.getMonth() &&
+                currentDate.getFullYear() === selectedDate.getFullYear()
                   ? styles["selected"]
                   : ""
               }`}

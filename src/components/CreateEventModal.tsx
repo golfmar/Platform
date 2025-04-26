@@ -3,6 +3,8 @@
 import { useState } from "react";
 import dynamic from "next/dynamic";
 import toast from "react-hot-toast";
+import Input from "./ui/Input/Input";
+import Select from "./ui/Select/Select";
 
 const LocationPickerMap = dynamic(() => import("./LocationPickerMap"), {
   ssr: false,
@@ -111,7 +113,7 @@ export default function CreateEventModal({
         <h2 className="text-xl font-semibold mb-4">Create Event</h2>
         <form onSubmit={handleSubmit} className="space-y-3">
           <div>
-            <label className="block mb-1">Title:</label>
+            {/* <label className="block mb-1">Title:</label>
             <input
               type="text"
               name="title"
@@ -119,22 +121,24 @@ export default function CreateEventModal({
               onChange={handleChange}
               required
               className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            /> */}
+            <Input
+              id="title"
+              typeInput="text"
+              data="Title:"
+              value={form.title}
+              onChange={handleChange}
+              name="title"
+              required
             />
           </div>
           <div>
             <label className="block mb-1">Category:</label>
-            <select
-              name="category"
+            <Select
+              selectItems={CATEGORIES}
               value={form.category}
               onChange={handleChange}
-              className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              {CATEGORIES.map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat}
-                </option>
-              ))}
-            </select>
+            />
           </div>
           <div>
             <label className="block mb-1">Date:</label>

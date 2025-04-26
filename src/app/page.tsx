@@ -58,6 +58,7 @@ export default function Home() {
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
   const [isCreatingEvent, setIsCreatingEvent] = useState(false);
   const [page, setPage] = useState(1);
+  const [isLoading, setIsLoading] = useState(true);
   const eventsPerPage = 5;
 
   const calculateDistance = (
@@ -134,16 +135,19 @@ export default function Home() {
         });
 
         setEvents(data);
+        setIsLoading(false);
       } catch (err: any) {
         console.error("Fetch error:", err);
         setError("Error fetching events");
         toast.error("Failed to fetch events");
+      } finally {
       }
     }
     fetchEvents();
   }, [filter, user, page]);
 
   const handleCreateEvent = async (formData: FormData) => {
+    setIsLoading(true);
     if (!user) {
       setError("Please log in to create events");
       toast.error("Please log in to create events");
@@ -170,6 +174,8 @@ export default function Home() {
       console.error("Create error:", err);
       setError(err.message || "Error creating event");
       throw err;
+    } finally {
+      setIsLoading(false); // Выключаем лоадер
     }
   };
 
@@ -180,6 +186,7 @@ export default function Home() {
 
   const handleSaveEdit = async (formData: FormData) => {
     if (!user) return;
+    setIsLoading(true);
     try {
       const response = await fetch("/api/events", {
         method: "PUT",
@@ -200,11 +207,14 @@ export default function Home() {
       console.error("Edit error:", err);
       setError(err.message || "Error updating event");
       toast.error(err.message || "Error updating event");
+    } finally {
+      setIsLoading(false); // Выключаем лоадер
     }
   };
 
   const handleDelete = async (id: number) => {
     if (!user) return;
+    setIsLoading(true);
     try {
       const response = await fetch("/api/events", {
         method: "DELETE",
@@ -224,6 +234,8 @@ export default function Home() {
       console.error("Delete error:", err);
       setError(err.message || "Error deleting event");
       toast.error(err.message || "Error deleting event");
+    } finally {
+      setIsLoading(false); // Выключаем лоадер
     }
   };
 
@@ -246,6 +258,7 @@ export default function Home() {
   }, []);
 
   const handleLogin = async (email: string, password: string) => {
+    setIsLoading(true);
     try {
       const response = await fetch("/api/auth", {
         method: "POST",
@@ -264,10 +277,13 @@ export default function Home() {
     } catch (err: any) {
       console.error("Login error:", err);
       toast.error(err.message || "Login failed");
+    } finally {
+      setIsLoading(false); // Выключаем лоадер
     }
   };
 
   const handleRegister = async (email: string, password: string) => {
+    setIsLoading(true);
     try {
       const response = await fetch("/api/auth", {
         method: "POST",
@@ -286,6 +302,8 @@ export default function Home() {
     } catch (err: any) {
       console.error("Register error:", err);
       toast.error(err.message || "Registration failed");
+    } finally {
+      setIsLoading(false); // Выключаем лоадер
     }
   };
 
@@ -519,6 +537,28 @@ export default function Home() {
               </li>
             ))}
           </ul>
+          {isLoading && (
+            <div className="fixed  flex items-center justify-center bg-gray-900 bg-opacity-50 top-0 left-0 right-0 bottom-0 z-50000">
+              <svg
+                className="animate-spin h-70 w-70 text-white"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="white"
+                  strokeWidth="4"
+                />
+                <path
+                  className="opacity-75"
+                  fill="white"
+                  d="M4 12a8 8 0 018-8v8h8a8 8 0 01-16 0z"
+                />
+              </svg>
+            </div>
+          )}
           <Pagination
             page={page}
             setPage={setPage}

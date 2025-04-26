@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import dynamic from "next/dynamic";
 import toast from "react-hot-toast";
 import Input from "./ui/Input/Input";
@@ -51,12 +51,16 @@ export default function CreateEventModal({
   };
 
   const handleDateChange = (date: Date) => {
-    const formattedDate = date.toLocaleDateString("en-CA", {
-      timeZone: "Europe/Berlin",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    });
+    const formattedDate = date
+      .toLocaleDateString("de-DE", {
+        timeZone: "Europe/Berlin",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      })
+      .split(".")
+      .reverse()
+      .join("-");
     setForm({ ...form, event_date: formattedDate });
   };
 
@@ -93,8 +97,7 @@ export default function CreateEventModal({
         toast.error("Address not found");
       }
     } catch (err: any) {
-      console.error("Geocode error:", err);
-      toast.error("Error searching for address");
+      toast.error("Error searching address");
     } finally {
       setIsSearching(false);
     }
@@ -124,22 +127,33 @@ export default function CreateEventModal({
     }
   };
 
+  // 🔍 Парсим location POINT(lng lat) → { lat, lng }
+  const parsedLocation = useMemo(() => {
+    if (!form.location) return null;
+    const match = form.location.match(/^POINT\((-?\d+\.?\d*) (-?\d+\.?\d*)\)$/);
+    if (match) {
+      return {
+        lng: parseFloat(match[1]),
+        lat: parseFloat(match[2]),
+      };
+    }
+    return null;
+  }, [form.location]);
+
   return (
     <div className="fixed top-0 left-0 inset-0 bg-[#000000e3] bg-opacity-50 z-5000 overflow-y-scroll">
       <div className="bg-white p-6 rounded-lg max-w-md w-full min-w-[70vw] m-auto my-6">
         <h2 className="text-xl font-semibold mb-4">Create Event</h2>
         <form onSubmit={handleSubmit} className="space-y-3">
-          <div>
-            <Input
-              id="title"
-              typeInput="text"
-              data="Title:"
-              value={form.title}
-              onChange={handleChange}
-              name="title"
-              required
-            />
-          </div>
+          <Input
+            id="title"
+            typeInput="text"
+            data="Title:"
+            value={form.title}
+            onChange={handleChange}
+            name="title"
+            required
+          />
           <div>
             <label className="block mb-1">Category:</label>
             <Select
@@ -174,33 +188,20 @@ export default function CreateEventModal({
               id="imageInput"
             />
             <label htmlFor="imageInput" className="cursor-pointer">
-              <Image
-                src={"/assets/svg/images.svg"}
-                alt="Image preview"
-                width={40}
-                height={40}
-              />
-            </label>
-            {imagePreview && (
-              <div className="mt-2">
-                <p className="text-sm text-gray-600">Preview:</p>
-                <img
-                  src={imagePreview}
-                  alt="Image preview"
-                  className="w-full max-w-[300px] max-h-[200px] h-auto object-contain rounded"
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    setImageFile(null);
-                    setImagePreview(null);
-                  }}
-                  className="mt-1 text-sm text-red-500 hover:text-red-700"
-                >
-                  Remove Image
-                </button>
+              <div className="bg-gray-100 p-2 rounded text-center">
+                {imagePreview ? (
+                  <Image
+                    src={imagePreview}
+                    alt="Preview"
+                    width={200}
+                    height={200}
+                    className="mx-auto"
+                  />
+                ) : (
+                  "Click to upload image"
+                )}
               </div>
-            )}
+            </label>
           </div>
           <div>
             <label className="block mb-1">
@@ -258,21 +259,24 @@ export default function CreateEventModal({
               placeholder="Coordinates will appear here (e.g. POINT(13.37 52.51))"
               className="w-full p-2 border border-gray-300 rounded mt-2 bg-gray-100 cursor-not-allowed"
             />
-            <LocationPickerMap onLocationSelect={handleLocationSelect} />
+            <LocationPickerMap
+              onLocationSelect={handleLocationSelect}
+              initialLocation={parsedLocation}
+            />
           </div>
-          <div className="flex justify-end space-x-2">
+          <div className="flex justify-end mt-4">
             <button
               type="button"
               onClick={onClose}
-              className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
+              className="mr-2 px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
             >
-              Create
+              Save Event
             </button>
           </div>
         </form>

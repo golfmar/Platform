@@ -9,6 +9,16 @@ import {
   useMapEvents,
 } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
+import L from "leaflet";
+
+// Настройка иконок маркера (обязательно, иначе маркер не виден)
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl:
+    "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+  iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+});
 
 interface LocationPickerMapProps {
   onLocationSelect: (location: string) => void;
@@ -42,19 +52,21 @@ export default function LocationPickerMap({
   onLocationSelect,
   initialLocation,
 }: LocationPickerMapProps) {
-  const [position, setPosition] = useState<[number, number] | null>(
-    initialLocation ? [initialLocation.lat, initialLocation.lng] : null
-  );
+  const [position, setPosition] = useState<[number, number] | null>(null);
+
+  useEffect(() => {
+    if (initialLocation) {
+      console.log("📍 Received initial location:", initialLocation);
+      setPosition([initialLocation.lat, initialLocation.lng]);
+    }
+  }, [initialLocation]);
 
   const handleMapClick = (lat: number, lng: number) => {
-    console.log("Map clicked:", { lat, lng }); // Для дебага
     setPosition([lat, lng]);
     onLocationSelect(`POINT(${lng} ${lat})`);
   };
 
-  const center: [number, number] = initialLocation
-    ? [initialLocation.lat, initialLocation.lng]
-    : [51.505, -0.09]; // Дефолтный центр (Лондон)
+  const center: [number, number] = position || [51.505, -0.09];
 
   return (
     <MapContainer
@@ -62,8 +74,11 @@ export default function LocationPickerMap({
       zoom={13}
       style={{ height: "200px", width: "100%" }}
     >
-      <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-      <MapUpdater center={position || center} />
+      <TileLayer
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        attribution='© <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors'
+      />
+      <MapUpdater center={center} />
       <MapClickHandler onClick={handleMapClick} />
       {position && <Marker position={position} />}
     </MapContainer>

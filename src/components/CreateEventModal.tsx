@@ -153,16 +153,9 @@ export default function CreateEventModal({
             />
           </div>
           <div>
-            <label className="block mb-1">Datum:</label>
-            {/* <input
-              type="date"
-              name="event_date"
-              value={form.event_date}
-              onChange={handleChange}
-              required
-              className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            {form.event_date && <p>Ausgewählt: {form.event_date}</p>} */}
+            <label className="block mb-1">
+              Datum: {form.event_date && <span>{form.event_date}</span>}
+            </label>
             <Calendar handleDateChange={handleDateChange} />
           </div>
           <div>

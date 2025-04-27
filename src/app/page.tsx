@@ -6,13 +6,15 @@ import toast, { Toaster } from "react-hot-toast";
 import AuthForm from "@/components/AuthForm";
 import Link from "next/link";
 import Pagination from "@/components/Pagination";
-
+import Loading from "@/components/Loading";
+import Input from "@/components/ui/Input/Input";
+import Select from "@/components/ui/Select/Select";
+import Calendar from "@/components/ui/Calendar/Calendar";
+import ClockUhr from "@/components/ui/ClockUhr/ClockUhr";
 const Map = dynamic(() => import("@/components/Map"), { ssr: false });
 const CreateEventModal = dynamic(
   () => import("@/components/CreateEventModal"),
-  {
-    ssr: false,
-  }
+  { ssr: false }
 );
 const EditEventModal = dynamic(() => import("@/components/EditEventModal"), {
   ssr: false,
@@ -40,8 +42,7 @@ const CATEGORIES = [
 
 export default function Home() {
   const [events, setEvents] = useState<Event[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState({
+  const initialFilter = {
     lat: "",
     lng: "",
     radius: "10000",
@@ -50,8 +51,10 @@ export default function Home() {
     endDate: "",
     myEvents: false,
     sort: "date-asc",
-    category: "", // Пустая строка = All Categories
-  });
+    category: "",
+  };
+  const [filter, setFilter] = useState(initialFilter);
+
   const [user, setUser] = useState<{ token: string; email: string } | null>(
     null
   );
@@ -60,6 +63,10 @@ export default function Home() {
   const [page, setPage] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const eventsPerPage = 5;
+
+  useEffect(() => {
+    console.log("<===filter=====>", filter);
+  }, [filter]);
 
   const calculateDistance = (
     lat1: number,
@@ -87,6 +94,21 @@ export default function Home() {
     document.body.style.overflow = "auto";
   };
 
+  const resetFilters = () => {
+    setFilter({
+      lat: "",
+      lng: "",
+      radius: "10000",
+      title: "",
+      startDate: "",
+      endDate: "",
+      myEvents: false,
+      sort: "date-asc",
+      category: "",
+    });
+    setPage(1);
+  };
+
   useEffect(() => {
     async function fetchEvents() {
       try {
@@ -96,10 +118,17 @@ export default function Home() {
         if (filter.lng) params.append("lng", filter.lng);
         if (filter.radius) params.append("radius", filter.radius);
         if (filter.title) params.append("title", filter.title);
-        if (filter.startDate) params.append("startDate", filter.startDate);
-        if (filter.endDate) params.append("endDate", filter.endDate);
+        if (filter.startDate) {
+          const startDate = new Date(filter.startDate);
+          const utcStartDate = startDate.toISOString();
+          params.append("startDate", utcStartDate);
+        }
+        if (filter.endDate) {
+          const endDate = new Date(filter.endDate);
+          const utcEndDate = endDate.toISOString();
+          params.append("endDate", utcEndDate);
+        }
         if (filter.myEvents) params.append("myEvents", "true");
-        // Отправляем category даже если пустое, чтобы API знал, что это "все категории"
         params.append("category", filter.category || "");
         params.append("limit", eventsPerPage.toString());
         params.append("offset", ((page - 1) * eventsPerPage).toString());
@@ -112,7 +141,6 @@ export default function Home() {
         let data = await response.json();
         console.log("Events fetched:", data);
 
-        // Сортировка на клиенте для distance-asc
         data = data.sort((a: Event, b: Event) => {
           if (filter.sort === "distance-asc" && filter.lat && filter.lng) {
             const lat = parseFloat(filter.lat);
@@ -135,12 +163,11 @@ export default function Home() {
         });
 
         setEvents(data);
-        setIsLoading(false);
       } catch (err: any) {
         console.error("Fetch error:", err);
-        setError("Error fetching events");
         toast.error("Failed to fetch events");
       } finally {
+        setIsLoading(false);
       }
     }
     fetchEvents();
@@ -149,7 +176,6 @@ export default function Home() {
   const handleCreateEvent = async (formData: FormData) => {
     setIsLoading(true);
     if (!user) {
-      setError("Please log in to create events");
       toast.error("Please log in to create events");
       return;
     }
@@ -160,6 +186,7 @@ export default function Home() {
         method: "POST",
         headers: {
           Authorization: `Bearer ${user.token}`,
+          Accept: "application/json",
         },
         body: formData,
       });
@@ -172,10 +199,9 @@ export default function Home() {
       toast.success("Event created successfully!");
     } catch (err: any) {
       console.error("Create error:", err);
-      setError(err.message || "Error creating event");
       throw err;
     } finally {
-      setIsLoading(false); // Выключаем лоадер
+      setIsLoading(false);
     }
   };
 
@@ -205,10 +231,9 @@ export default function Home() {
       toast.success("Event updated successfully!");
     } catch (err: any) {
       console.error("Edit error:", err);
-      setError(err.message || "Error updating event");
       toast.error(err.message || "Error updating event");
     } finally {
-      setIsLoading(false); // Выключаем лоадер
+      setIsLoading(false);
     }
   };
 
@@ -232,10 +257,9 @@ export default function Home() {
       toast.success("Event deleted successfully!");
     } catch (err: any) {
       console.error("Delete error:", err);
-      setError(err.message || "Error deleting event");
       toast.error(err.message || "Error deleting event");
     } finally {
-      setIsLoading(false); // Выключаем лоадер
+      setIsLoading(false);
     }
   };
 
@@ -243,10 +267,19 @@ export default function Home() {
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
     const { name, value, type, checked } = e.target as HTMLInputElement;
-    setFilter({
+    const newFilter = {
       ...filter,
       [name]: type === "checkbox" ? checked : value,
-    });
+    };
+    if (name === "startDate" || name === "endDate") {
+      const start = newFilter.startDate ? new Date(newFilter.startDate) : null;
+      const end = newFilter.endDate ? new Date(newFilter.endDate) : null;
+      if (start && end && end < start) {
+        toast.error("End date cannot be before start date");
+        return;
+      }
+    }
+    setFilter(newFilter);
     setPage(1);
   };
 
@@ -278,7 +311,7 @@ export default function Home() {
       console.error("Login error:", err);
       toast.error(err.message || "Login failed");
     } finally {
-      setIsLoading(false); // Выключаем лоадер
+      setIsLoading(false);
     }
   };
 
@@ -303,7 +336,7 @@ export default function Home() {
       console.error("Register error:", err);
       toast.error(err.message || "Registration failed");
     } finally {
-      setIsLoading(false); // Выключаем лоадер
+      setIsLoading(false);
     }
   };
 
@@ -313,8 +346,6 @@ export default function Home() {
     setFilter({ ...filter, myEvents: false });
     toast.success("Logged out successfully!");
   };
-
-  if (error) return <div className="text-red-500">{error}</div>;
 
   return (
     <div className="p-5 font-sans">
@@ -332,13 +363,13 @@ export default function Home() {
                 setIsCreatingEvent(true);
                 stopBodyScroll();
               }}
-              className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600  "
+              className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
             >
               Create Event
             </button>
             <button
               onClick={handleLogout}
-              className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600  "
+              className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
             >
               Logout
             </button>
@@ -369,54 +400,192 @@ export default function Home() {
 
       <div className="mb-5">
         <h2 className="text-xl font-semibold mb-3">Filter Events</h2>
+
+        {filter.startDate && (
+          <div className="mb-3">
+            <button
+              onClick={resetFilters}
+              className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
+            >
+              Reset Filters
+            </button>
+          </div>
+        )}
+
         <div className="space-y-3">
           <div>
             <label className="block mb-1">Title:</label>
-            <input
-              type="text"
+            <Input
+              typeInput="text"
+              data="e.g., Art"
               name="title"
               value={filter.title}
               onChange={handleFilterChange}
-              placeholder="e.g., Art"
-              className="w-full max-w-xs p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
           <div>
             <label className="block mb-1">Category:</label>
-            <select
-              name="category"
+            <Select
+              selectItems={CATEGORIES}
               value={filter.category}
               onChange={handleFilterChange}
-              className="w-full max-w-xs p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">All Categories</option>
-              {CATEGORIES.map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block mb-1">Start Date:</label>
-            <input
-              type="date"
-              name="startDate"
-              value={filter.startDate}
-              onChange={handleFilterChange}
-              className="w-full max-w-xs p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              name="category"
             />
           </div>
           <div>
-            <label className="block mb-1">End Date:</label>
-            <input
-              type="date"
-              name="endDate"
-              value={filter.endDate}
-              onChange={handleFilterChange}
-              className="w-full max-w-xs p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+            <label className="block mb-1">Start Date Interval:</label>
+            <div>
+              <label className="block mb-1">
+                {filter.startDate && (
+                  <span>
+                    {new Date(filter.startDate).toLocaleString("de-DE", {
+                      day: "2-digit",
+                      month: "2-digit",
+                      year: "numeric",
+                    })}
+                  </span>
+                )}
+              </label>
+              <Calendar
+                selectedDate={
+                  filter.startDate ? new Date(filter.startDate) : null
+                }
+                handleDateChange={(date: Date) => {
+                  const berlinDate = new Date(
+                    date.toLocaleString("en-US", { timeZone: "Europe/Berlin" })
+                  );
+                  const year = berlinDate.getFullYear();
+                  const month = String(berlinDate.getMonth() + 1).padStart(
+                    2,
+                    "0"
+                  );
+                  const day = String(berlinDate.getDate()).padStart(2, "0");
+                  const formattedDate = `${year}-${month}-${day}`;
+                  const currentTime =
+                    filter.startDate?.split("T")[1] || "00:00:00";
+                  const newStartDate = `${formattedDate}T${currentTime}`;
+                  handleFilterChange({
+                    target: { name: "startDate", value: newStartDate },
+                  } as React.ChangeEvent<HTMLInputElement>);
+                }}
+              />
+            </div>
+            <div>
+              <label className="block mb-1">
+                Time:{" "}
+                {filter.startDate && (
+                  <span>
+                    {new Date(filter.startDate).toLocaleTimeString("de-DE", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      hour12: false,
+                    })}
+                  </span>
+                )}
+              </label>
+              <ClockUhr
+                data="Time:"
+                value={filter.startDate?.split("T")[1]?.slice(0, 5) || "00:00"}
+                disabled={!filter.startDate}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                  if (!filter.startDate) return;
+                  const cleanedTime = e.target.value.trim();
+                  if (/^\d{2}:\d{2}$/.test(cleanedTime)) {
+                    const currentDate =
+                      filter.startDate?.split("T")[0] ||
+                      new Date()
+                        .toLocaleString("en-US", { timeZone: "Europe/Berlin" })
+                        .split(",")[0]
+                        .split("/")
+                        .reverse()
+                        .map((num) => num.padStart(2, "0"))
+                        .join("-");
+                    const newStartDate = `${currentDate}T${cleanedTime}:00`;
+                    handleFilterChange({
+                      target: { name: "startDate", value: newStartDate },
+                    } as React.ChangeEvent<HTMLInputElement>);
+                  }
+                }}
+              />
+            </div>
           </div>
+          <div>
+            <label className="block mb-1">End Date Interval:</label>
+            <div>
+              <label className="block mb-1">
+                {filter.endDate && (
+                  <span>
+                    {new Date(filter.endDate).toLocaleString("de-DE", {
+                      day: "2-digit",
+                      month: "2-digit",
+                      year: "numeric",
+                    })}
+                  </span>
+                )}
+              </label>
+              <Calendar
+                selectedDate={filter.endDate ? new Date(filter.endDate) : null}
+                handleDateChange={(date: Date) => {
+                  const berlinDate = new Date(
+                    date.toLocaleString("en-US", { timeZone: "Europe/Berlin" })
+                  );
+                  const year = berlinDate.getFullYear();
+                  const month = String(berlinDate.getMonth() + 1).padStart(
+                    2,
+                    "0"
+                  );
+                  const day = String(berlinDate.getDate()).padStart(2, "0");
+                  const formattedDate = `${year}-${month}-${day}`;
+                  const currentTime =
+                    filter.endDate?.split("T")[1] || "00:00:00";
+                  const newEndDate = `${formattedDate}T${currentTime}`;
+                  handleFilterChange({
+                    target: { name: "endDate", value: newEndDate },
+                  } as React.ChangeEvent<HTMLInputElement>);
+                }}
+              />
+            </div>
+            <div>
+              <label className="block mb-1">
+                Time:{" "}
+                {filter.endDate && (
+                  <span>
+                    {new Date(filter.endDate).toLocaleTimeString("de-DE", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      hour12: false,
+                    })}
+                  </span>
+                )}
+              </label>
+              <ClockUhr
+                data="Time:"
+                value={filter.endDate?.split("T")[1]?.slice(0, 5) || "00:00"}
+                disabled={!filter.endDate}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                  if (!filter.endDate) return;
+
+                  const cleanedTime = e.target.value.trim();
+                  if (/^\d{2}:\d{2}$/.test(cleanedTime)) {
+                    const currentDate =
+                      filter.endDate?.split("T")[0] ||
+                      new Date()
+                        .toLocaleString("en-US", { timeZone: "Europe/Berlin" })
+                        .split(",")[0]
+                        .split("/")
+                        .reverse()
+                        .map((num) => num.padStart(2, "0"))
+                        .join("-");
+                    const newEndDate = `${currentDate}T${cleanedTime}:00`;
+                    handleFilterChange({
+                      target: { name: "endDate", value: newEndDate },
+                    } as React.ChangeEvent<HTMLInputElement>);
+                  }
+                }}
+              />
+            </div>
+          </div>
+
           <div>
             <label className="block mb-1">Latitude:</label>
             <input
@@ -506,7 +675,17 @@ export default function Home() {
                         {event.title}
                       </Link>
                     </h2>
-                    <p>Date: {new Date(event.event_date).toLocaleString()}</p>
+                    <p>
+                      Date and Time:{" "}
+                      {new Date(event.event_date).toLocaleString("de-DE", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        hour12: false,
+                      })}
+                    </p>
                     <p>Category: {event.category || "None"}</p>
                     <p>Description: {event.description || "None"}</p>
                     <p>Location: {event.location || "Unknown"}</p>
@@ -537,28 +716,7 @@ export default function Home() {
               </li>
             ))}
           </ul>
-          {isLoading && (
-            <div className="fixed  flex items-center justify-center bg-gray-900 bg-opacity-50 top-0 left-0 right-0 bottom-0 z-50000">
-              <svg
-                className="animate-spin h-70 w-70 text-white"
-                viewBox="0 0 24 24"
-              >
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="white"
-                  strokeWidth="4"
-                />
-                <path
-                  className="opacity-75"
-                  fill="white"
-                  d="M4 12a8 8 0 018-8v8h8a8 8 0 01-16 0z"
-                />
-              </svg>
-            </div>
-          )}
+          {isLoading && <Loading />}
           <Pagination
             page={page}
             setPage={setPage}

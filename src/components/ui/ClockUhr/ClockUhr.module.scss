@@ -2,6 +2,10 @@
 
 .timeUhr {
   position: relative;
+
+  &.disabled {
+    opacity: 0.5;
+  }
 }
 
 .time-display {

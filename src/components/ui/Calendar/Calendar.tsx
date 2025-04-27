@@ -5,6 +5,7 @@ import styles from "./Calendar.module.scss";
 import ModalMessage from "@/components/ModalMessage/ModalMessage";
 
 interface CalendarProps {
+  selectedDate: Date | null;
   handleDateChange: (date: Date) => void;
 }
 
@@ -24,19 +25,31 @@ const months: string[] = [
   "Dezember",
 ];
 
-const Calendar: React.FC<CalendarProps> = ({ handleDateChange }) => {
+const Calendar: React.FC<CalendarProps> = ({
+  selectedDate,
+  handleDateChange,
+}) => {
   const [successMessage, setSuccessMessage] = useState<string>("");
   const [openModalMessage, setOpenModalMessage] = useState<boolean>(false);
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [internalSelectedDate, setInternalSelectedDate] = useState<Date | null>(
+    selectedDate
+  );
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
 
+  useEffect(() => {
+    if (selectedDate === null) {
+      setInternalSelectedDate(currentDate);
+    } else {
+      setInternalSelectedDate(selectedDate);
+    }
+  }, [selectedDate]);
+
   const validateAndSetDate = (date: Date) => {
-    // Устанавливаем дату в немецком часовом поясе
-    const now = new Date().toLocaleString("en-US", {
+    const now = new Date().toLocaleString("de-DE", {
       timeZone: "Europe/Berlin",
     });
     const selected = new Date(
-      date.toLocaleString("en-US", { timeZone: "Europe/Berlin" })
+      date.toLocaleString("de-DE", { timeZone: "Europe/Berlin" })
     );
     selected.setHours(0, 0, 0, 0);
     const today = new Date(now);
@@ -46,21 +59,17 @@ const Calendar: React.FC<CalendarProps> = ({ handleDateChange }) => {
       setSuccessMessage("Date must be in the future!");
       setOpenModalMessage(true);
       const newDate = new Date(today);
-      setSelectedDate(newDate);
+      setInternalSelectedDate(newDate);
       setTimeout(() => {
         setSuccessMessage("");
         setOpenModalMessage(false);
       }, 2000);
       handleDateChange(newDate);
     } else {
-      setSelectedDate(date);
+      setInternalSelectedDate(date);
       handleDateChange(date);
     }
   };
-
-  useEffect(() => {
-    validateAndSetDate(selectedDate);
-  }, [selectedDate]);
 
   const getDaysInMonth = (date: Date): (number | null)[] => {
     const year = date.getFullYear();
@@ -109,7 +118,22 @@ const Calendar: React.FC<CalendarProps> = ({ handleDateChange }) => {
   return (
     <>
       <ModalMessage message={successMessage} open={openModalMessage} />
+
       <div className={`${styles["calendar"]} ${styles["rel"]}`}>
+        <p className="">
+          selectedDate:{" "}
+          {internalSelectedDate
+            ? internalSelectedDate.toLocaleString("de-DE", {
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit",
+                hour12: false,
+              })
+            : "Not selected"}
+        </p>
         <div className={`${styles["calendar-header"]}`}>
           <button
             type="button"
@@ -153,9 +177,11 @@ const Calendar: React.FC<CalendarProps> = ({ handleDateChange }) => {
             <div
               key={index}
               className={`${styles["calendar-day"]} ${
-                day === selectedDate.getDate() &&
-                currentDate.getMonth() === selectedDate.getMonth() &&
-                currentDate.getFullYear() === selectedDate.getFullYear()
+                day &&
+                internalSelectedDate &&
+                day === internalSelectedDate.getDate() &&
+                currentDate.getMonth() === internalSelectedDate.getMonth() &&
+                currentDate.getFullYear() === internalSelectedDate.getFullYear()
                   ? styles["selected"]
                   : ""
               }`}

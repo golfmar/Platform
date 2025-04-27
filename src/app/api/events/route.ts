@@ -158,6 +158,26 @@ export async function POST(request: Request) {
       );
     }
 
+    // Нормализация даты и времени в UTC
+    const parsedDate = new Date(event_date);
+    if (isNaN(parsedDate.getTime())) {
+      console.log("<====invalid date====>", event_date);
+      return NextResponse.json(
+        { error: "Invalid date format" },
+        { status: 400 }
+      );
+    }
+    const normalizedDate = new Date(
+      Date.UTC(
+        parsedDate.getUTCFullYear(),
+        parsedDate.getUTCMonth(),
+        parsedDate.getUTCDate(),
+        parsedDate.getUTCHours(),
+        parsedDate.getUTCMinutes(),
+        0
+      )
+    );
+
     let image_url: string | null = null;
     if (image) {
       const buffer = Buffer.from(await image.arrayBuffer());
@@ -173,11 +193,18 @@ export async function POST(request: Request) {
       console.log("<====cloudinary upload====>", result);
     }
 
+    console.log("<====formData====>", {
+      title,
+      event_date: normalizedDate.toISOString(),
+      description,
+      location,
+      category,
+      image: image ? image.name : null,
+    });
+
     const event = await prisma.$queryRaw`
       INSERT INTO events (title, event_date, description, location, organizer_id, created_at, category, image_url)
-      VALUES (${title}, ${new Date(
-      event_date
-    )}, ${description}, ST_GeomFromText(${location}), ${
+      VALUES (${title}, ${normalizedDate}, ${description}, ST_GeomFromText(${location}), ${
       decoded.userId
     }, NOW(), ${category || "Other"}, ${image_url})
       RETURNING id, title, event_date, description, ST_AsText(location) as location, (
@@ -194,6 +221,12 @@ export async function POST(request: Request) {
     console.error("<====error====>", error);
     if (error.name === "JsonWebTokenError") {
       return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+    }
+    if (error.name === "TokenExpiredError") {
+      return NextResponse.json(
+        { error: "Token expired====>" + error.message },
+        { status: 401 }
+      );
     }
     return NextResponse.json(
       { error: "Failed to create event" },
@@ -237,6 +270,26 @@ export async function PUT(request: Request) {
       );
     }
 
+    // Нормализация даты и времени в UTC
+    const parsedDate = new Date(event_date);
+    if (isNaN(parsedDate.getTime())) {
+      console.log("<====invalid date====>", event_date);
+      return NextResponse.json(
+        { error: "Invalid date format" },
+        { status: 400 }
+      );
+    }
+    const normalizedDate = new Date(
+      Date.UTC(
+        parsedDate.getUTCFullYear(),
+        parsedDate.getUTCMonth(),
+        parsedDate.getUTCDate(),
+        parsedDate.getUTCHours(),
+        parsedDate.getUTCMinutes(),
+        0
+      )
+    );
+
     let image_url: string | null = null;
     if (image) {
       const buffer = Buffer.from(await image.arrayBuffer());
@@ -256,7 +309,7 @@ export async function PUT(request: Request) {
       UPDATE events
       SET
         title = ${title},
-        event_date = ${new Date(event_date)},
+        event_date = ${normalizedDate},
         description = ${description},
         location = ST_GeomFromText(${location}),
         category = ${category || "Other"},
@@ -282,6 +335,12 @@ export async function PUT(request: Request) {
     console.error("<====error====>", error);
     if (error.name === "JsonWebTokenError") {
       return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+    }
+    if (error.name === "TokenExpiredError") {
+      return NextResponse.json(
+        { error: "Token expired====>" + error.message },
+        { status: 401 }
+      );
     }
     return NextResponse.json(
       { error: "Failed to update event" },
@@ -358,6 +417,12 @@ export async function DELETE(request: Request) {
     console.error("<====error====>", error);
     if (error.name === "JsonWebTokenError") {
       return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+    }
+    if (error.name === "TokenExpiredError") {
+      return NextResponse.json(
+        { error: "Token expired====>" + error.message },
+        { status: 401 }
+      );
     }
     return NextResponse.json(
       { error: "Failed to delete event" },

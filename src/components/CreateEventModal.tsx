@@ -6,6 +6,7 @@ import toast from "react-hot-toast";
 import Input from "./ui/Input/Input";
 import Select from "./ui/Select/Select";
 import Calendar from "./ui/Calendar/Calendar";
+import ClockUhr from "./ui/ClockUhr/ClockUhr"; // Импортируем ClockUhr
 import Image from "next/image";
 
 const LocationPickerMap = dynamic(() => import("./LocationPickerMap"), {
@@ -33,6 +34,7 @@ export default function CreateEventModal({
   const [form, setForm] = useState({
     title: "",
     event_date: "",
+    event_time: "", // Добавляем поле для времени
     description: "",
     location: "",
     address: "",
@@ -51,17 +53,24 @@ export default function CreateEventModal({
   };
 
   const handleDateChange = (date: Date) => {
-    const formattedDate = date
-      .toLocaleDateString("de-DE", {
-        timeZone: "Europe/Berlin",
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-      })
-      .split(".")
-      .reverse()
-      .join("-");
+    const tzDate = new Date(
+      date.toLocaleString("en-US", { timeZone: "Europe/Berlin" })
+    );
+
+    const year = tzDate.getFullYear();
+    const month = String(tzDate.getMonth() + 1).padStart(2, "0");
+    const day = String(tzDate.getDate()).padStart(2, "0");
+
+    const formattedDate = `${year}-${month}-${day}`;
+
+    console.log("<====Local Date====>", tzDate);
+    console.log("<====Formatted Date====>", formattedDate);
+
     setForm({ ...form, event_date: formattedDate });
+  };
+
+  const handleTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setForm({ ...form, event_time: e.target.value });
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -112,22 +121,31 @@ export default function CreateEventModal({
     try {
       const formData = new FormData();
       formData.append("title", form.title);
-      formData.append("event_date", form.event_date);
+      // Объединяем дату и время
+      const eventDateTime =
+        form.event_date && form.event_time
+          ? `${form.event_date}T${form.event_time}:00`
+          : form.event_date;
+      formData.append("event_date", eventDateTime);
       formData.append("description", form.description);
       formData.append("location", form.location);
       formData.append("category", form.category);
       if (imageFile) {
         formData.append("image", imageFile);
       }
-
       await onSave(formData);
       onClose();
     } catch (err: any) {
-      toast.error(err.message || "Error creating event");
+      if (err.message.includes("Token expired")) {
+        toast.error(
+          "Your authorization has expired. Please update your login credentials"
+        );
+      } else {
+        toast.error("Error creating event");
+      }
     }
   };
 
-  // 🔍 Парсим location POINT(lng lat) → { lat, lng }
   const parsedLocation = useMemo(() => {
     if (!form.location) return null;
     const match = form.location.match(/^POINT\((-?\d+\.?\d*) (-?\d+\.?\d*)\)$/);
@@ -167,6 +185,16 @@ export default function CreateEventModal({
               Date: {form.event_date && <span>{form.event_date}</span>}
             </label>
             <Calendar handleDateChange={handleDateChange} />
+          </div>
+          <div>
+            <label className="block mb-1">
+              Time: {form.event_time && <span>{form.event_time}</span>}
+            </label>
+            <ClockUhr
+              data="Time:"
+              value={form.event_time}
+              onChange={handleTimeChange}
+            />
           </div>
           <div>
             <label className="block mb-1">Description:</label>

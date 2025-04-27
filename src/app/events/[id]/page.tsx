@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import toast, { Toaster } from "react-hot-toast";
 import { use } from "react";
+import Loading from "@/components/Loading";
 
 const Map = dynamic(() => import("@/components/Map"), { ssr: false });
 
@@ -16,7 +17,7 @@ interface Event {
   location: string | null;
   organizer_email: string;
   category: string | null;
-  image_url: string | null; // Добавили
+  image_url: string | null;
 }
 
 export default function EventPage({
@@ -27,29 +28,35 @@ export default function EventPage({
   const { id } = use(params);
   const [event, setEvent] = useState<Event | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
     async function fetchEvent() {
       try {
+        console.log(`<====Fetching event ID: ${id}====>`);
         const response = await fetch(`/api/events?id=${id}`);
         if (!response.ok) {
           const errorData = await response.json();
           throw new Error(errorData.error || "Failed to fetch event");
         }
         const data = await response.json();
+        console.log("<====Event fetched====>", data);
         setEvent(data);
       } catch (err: any) {
-        console.error("Fetch error:", err);
+        console.error("<====Fetch error====>", err);
         setError(err.message || "Error fetching event");
         toast.error(err.message || "Error fetching event");
+      } finally {
+        setIsLoading(false);
       }
     }
     fetchEvent();
   }, [id]);
 
+  if (isLoading) return <Loading />;
   if (error) return <div className="text-red-500 p-5">{error}</div>;
-  if (!event) return <div className="p-5">Loading...</div>;
+  if (!event) return <div className="p-5">Event not found</div>;
 
   return (
     <div className="p-5 font-sans">

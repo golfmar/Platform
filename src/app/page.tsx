@@ -41,7 +41,7 @@ const CATEGORIES = [
   "Conference",
   "Other",
 ];
-
+const ORDERS = ["date-asc", "date-desc", "distance-asc"];
 export default function Home() {
   const [events, setEvents] = useState<Event[]>([]);
   const initialFilter = {
@@ -459,31 +459,12 @@ export default function Home() {
             </div>
           </div>
           <div>
-            <button
-              type="button"
-              data-name="title"
-              ref={(el) => {
-                if (el && !refs.current.includes(el)) {
-                  refs.current.push(el);
-                }
-              }}
-              onClick={(e) => {
-                refs.current.forEach((btn) => {
-                  if (btn?.dataset.name === "title") {
-                    btn.classList.add("run");
-                  } else if (btn) {
-                    btn.classList.remove("run");
-                  }
-                });
-              }}
-            >
-              Title:
-            </button>
+            <ButtonTab refs={refs} name="Title:" />
             <div className="next-hidden">
               <div className="next-hidden__wrap">
                 <Input
                   typeInput="text"
-                  data="e.g., Art"
+                  data="Title:"
                   name="title"
                   value={filter.title}
                   onChange={handleFilterChange}
@@ -492,26 +473,7 @@ export default function Home() {
             </div>
           </div>
           <div>
-            <button
-              type="button"
-              data-name="category"
-              ref={(el) => {
-                if (el && !refs.current.includes(el)) {
-                  refs.current.push(el);
-                }
-              }}
-              onClick={(e) => {
-                refs.current.forEach((btn) => {
-                  if (btn?.dataset.name === "category") {
-                    btn.classList.add("run");
-                  } else if (btn) {
-                    btn.classList.remove("run");
-                  }
-                });
-              }}
-            >
-              Category:
-            </button>
+            <ButtonTab refs={refs} name="Category:" />
             <div className="next-hidden">
               <div className="next-hidden__wrap">
                 <Select
@@ -525,204 +487,232 @@ export default function Home() {
           </div>
 
           <div>
-            <label className="block mb-1">Start Date Interval:</label>
-            <div>
-              <label className="block mb-1">
-                {filter.startDate && (
-                  <span>
-                    {new Date(filter.startDate).toLocaleString("de-DE", {
-                      day: "2-digit",
-                      month: "2-digit",
-                      year: "numeric",
-                    })}
-                  </span>
-                )}
-              </label>
-              <Calendar
-                selectedDate={
-                  filter.startDate ? new Date(filter.startDate) : null
-                }
-                handleDateChange={(date: Date) => {
-                  const berlinDate = new Date(
-                    date.toLocaleString("en-US", { timeZone: "Europe/Berlin" })
-                  );
-                  const year = berlinDate.getFullYear();
-                  const month = String(berlinDate.getMonth() + 1).padStart(
-                    2,
-                    "0"
-                  );
-                  const day = String(berlinDate.getDate()).padStart(2, "0");
-                  const formattedDate = `${year}-${month}-${day}`;
-                  const currentTime =
-                    filter.startDate?.split("T")[1] || "00:00:00";
-                  const newStartDate = `${formattedDate}T${currentTime}`;
-                  handleFilterChange({
-                    target: { name: "startDate", value: newStartDate },
-                  } as React.ChangeEvent<HTMLInputElement>);
-                }}
-              />
-            </div>
-            <div>
-              <label className="block mb-1">
-                Time:{" "}
-                {filter.startDate && (
-                  <span>
-                    {new Date(filter.startDate).toLocaleTimeString("de-DE", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                      hour12: false,
-                    })}
-                  </span>
-                )}
-              </label>
-              <ClockUhr
-                data="Time:"
-                value={filter.startDate?.split("T")[1]?.slice(0, 5) || "00:00"}
-                disabled={!filter.startDate}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                  if (!filter.startDate) return;
-                  const cleanedTime = e.target.value.trim();
-                  if (/^\d{2}:\d{2}$/.test(cleanedTime)) {
-                    const currentDate =
-                      filter.startDate?.split("T")[0] ||
-                      new Date()
-                        .toLocaleString("en-US", { timeZone: "Europe/Berlin" })
-                        .split(",")[0]
-                        .split("/")
-                        .reverse()
-                        .map((num) => num.padStart(2, "0"))
-                        .join("-");
-                    const newStartDate = `${currentDate}T${cleanedTime}:00`;
+            <ButtonTab refs={refs} name="Start Date Interval:" />
+            <div className="next-hidden">
+              <div className="next-hidden__wrap">
+                <label className="block mb-1">
+                  {filter.startDate && (
+                    <span>
+                      {new Date(filter.startDate).toLocaleString("de-DE", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "numeric",
+                      })}
+                    </span>
+                  )}
+                </label>
+                <Calendar
+                  selectedDate={
+                    filter.startDate ? new Date(filter.startDate) : null
+                  }
+                  handleDateChange={(date: Date) => {
+                    const berlinDate = new Date(
+                      date.toLocaleString("en-US", {
+                        timeZone: "Europe/Berlin",
+                      })
+                    );
+                    const year = berlinDate.getFullYear();
+                    const month = String(berlinDate.getMonth() + 1).padStart(
+                      2,
+                      "0"
+                    );
+                    const day = String(berlinDate.getDate()).padStart(2, "0");
+                    const formattedDate = `${year}-${month}-${day}`;
+                    const currentTime =
+                      filter.startDate?.split("T")[1] || "00:00:00";
+                    const newStartDate = `${formattedDate}T${currentTime}`;
                     handleFilterChange({
                       target: { name: "startDate", value: newStartDate },
                     } as React.ChangeEvent<HTMLInputElement>);
+                  }}
+                />
+
+                <label className="block mb-1">
+                  Time:
+                  {filter.startDate && (
+                    <span>
+                      {new Date(filter.startDate).toLocaleTimeString("de-DE", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        hour12: false,
+                      })}
+                    </span>
+                  )}
+                </label>
+                <ClockUhr
+                  data="Time:"
+                  value={
+                    filter.startDate?.split("T")[1]?.slice(0, 5) || "00:00"
                   }
-                }}
-              />
+                  disabled={!filter.startDate}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                    if (!filter.startDate) return;
+                    const cleanedTime = e.target.value.trim();
+                    if (/^\d{2}:\d{2}$/.test(cleanedTime)) {
+                      const currentDate =
+                        filter.startDate?.split("T")[0] ||
+                        new Date()
+                          .toLocaleString("en-US", {
+                            timeZone: "Europe/Berlin",
+                          })
+                          .split(",")[0]
+                          .split("/")
+                          .reverse()
+                          .map((num) => num.padStart(2, "0"))
+                          .join("-");
+                      const newStartDate = `${currentDate}T${cleanedTime}:00`;
+                      handleFilterChange({
+                        target: { name: "startDate", value: newStartDate },
+                      } as React.ChangeEvent<HTMLInputElement>);
+                    }
+                  }}
+                />
+              </div>
             </div>
           </div>
           <div>
-            <label className="block mb-1">End Date Interval:</label>
-            <div>
-              <label className="block mb-1">
-                {filter.endDate && (
-                  <span>
-                    {new Date(filter.endDate).toLocaleString("de-DE", {
-                      day: "2-digit",
-                      month: "2-digit",
-                      year: "numeric",
-                    })}
-                  </span>
-                )}
-              </label>
-              <Calendar
-                selectedDate={filter.endDate ? new Date(filter.endDate) : null}
-                handleDateChange={(date: Date) => {
-                  const berlinDate = new Date(
-                    date.toLocaleString("en-US", { timeZone: "Europe/Berlin" })
-                  );
-                  const year = berlinDate.getFullYear();
-                  const month = String(berlinDate.getMonth() + 1).padStart(
-                    2,
-                    "0"
-                  );
-                  const day = String(berlinDate.getDate()).padStart(2, "0");
-                  const formattedDate = `${year}-${month}-${day}`;
-                  const currentTime =
-                    filter.endDate?.split("T")[1] || "00:00:00";
-                  const newEndDate = `${formattedDate}T${currentTime}`;
-                  handleFilterChange({
-                    target: { name: "endDate", value: newEndDate },
-                  } as React.ChangeEvent<HTMLInputElement>);
-                }}
-              />
-            </div>
-            <div>
-              <label className="block mb-1">
-                Time:{" "}
-                {filter.endDate && (
-                  <span>
-                    {new Date(filter.endDate).toLocaleTimeString("de-DE", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                      hour12: false,
-                    })}
-                  </span>
-                )}
-              </label>
-              <ClockUhr
-                data="Time:"
-                value={filter.endDate?.split("T")[1]?.slice(0, 5) || "00:00"}
-                disabled={!filter.endDate}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                  if (!filter.endDate) return;
-
-                  const cleanedTime = e.target.value.trim();
-                  if (/^\d{2}:\d{2}$/.test(cleanedTime)) {
-                    const currentDate =
-                      filter.endDate?.split("T")[0] ||
-                      new Date()
-                        .toLocaleString("en-US", { timeZone: "Europe/Berlin" })
-                        .split(",")[0]
-                        .split("/")
-                        .reverse()
-                        .map((num) => num.padStart(2, "0"))
-                        .join("-");
-                    const newEndDate = `${currentDate}T${cleanedTime}:00`;
+            <ButtonTab refs={refs} name="End Date Interval:" />
+            <div className="next-hidden">
+              <div className="next-hidden__wrap">
+                <label className="block mb-1">
+                  {filter.endDate && (
+                    <span>
+                      {new Date(filter.endDate).toLocaleString("de-DE", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "numeric",
+                      })}
+                    </span>
+                  )}
+                </label>
+                <Calendar
+                  selectedDate={
+                    filter.endDate ? new Date(filter.endDate) : null
+                  }
+                  handleDateChange={(date: Date) => {
+                    const berlinDate = new Date(
+                      date.toLocaleString("en-US", {
+                        timeZone: "Europe/Berlin",
+                      })
+                    );
+                    const year = berlinDate.getFullYear();
+                    const month = String(berlinDate.getMonth() + 1).padStart(
+                      2,
+                      "0"
+                    );
+                    const day = String(berlinDate.getDate()).padStart(2, "0");
+                    const formattedDate = `${year}-${month}-${day}`;
+                    const currentTime =
+                      filter.endDate?.split("T")[1] || "00:00:00";
+                    const newEndDate = `${formattedDate}T${currentTime}`;
                     handleFilterChange({
                       target: { name: "endDate", value: newEndDate },
                     } as React.ChangeEvent<HTMLInputElement>);
-                  }
-                }}
-              />
+                  }}
+                />
+
+                <label className="block mb-1">
+                  Time:{" "}
+                  {filter.endDate && (
+                    <span>
+                      {new Date(filter.endDate).toLocaleTimeString("de-DE", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        hour12: false,
+                      })}
+                    </span>
+                  )}
+                </label>
+                <ClockUhr
+                  data="Time:"
+                  value={filter.endDate?.split("T")[1]?.slice(0, 5) || "00:00"}
+                  disabled={!filter.endDate}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                    if (!filter.endDate) return;
+
+                    const cleanedTime = e.target.value.trim();
+                    if (/^\d{2}:\d{2}$/.test(cleanedTime)) {
+                      const currentDate =
+                        filter.endDate?.split("T")[0] ||
+                        new Date()
+                          .toLocaleString("en-US", {
+                            timeZone: "Europe/Berlin",
+                          })
+                          .split(",")[0]
+                          .split("/")
+                          .reverse()
+                          .map((num) => num.padStart(2, "0"))
+                          .join("-");
+                      const newEndDate = `${currentDate}T${cleanedTime}:00`;
+                      handleFilterChange({
+                        target: { name: "endDate", value: newEndDate },
+                      } as React.ChangeEvent<HTMLInputElement>);
+                    }
+                  }}
+                />
+              </div>
             </div>
           </div>
+
           <div>
-            <label className="block mb-1">Latitude:</label>
-            <input
-              type="text"
-              name="lat"
-              value={filter.lat}
-              onChange={handleFilterChange}
-              placeholder="e.g., 48.8566"
-              className="w-full max-w-xs p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+            <ButtonTab refs={refs} name="Koordinaten:" />
+            <div className="next-hidden">
+              <div className="next-hidden__wrap">
+                <div className="mt-4 w-full px-1  ">
+                  <Input
+                    typeInput="text"
+                    data="Longitude:"
+                    name="lng"
+                    value={filter.lng}
+                    onChange={handleFilterChange}
+                  />
+                </div>
+                <div className="mt-4 w-full   px-1   ">
+                  <Input
+                    typeInput="text"
+                    data="Latitude:"
+                    name="lat"
+                    value={filter.lat}
+                    onChange={handleFilterChange}
+                  />
+                </div>
+                <div className="mt-6 w-full   px-1  py-2 ">
+                  <Input
+                    typeInput="text"
+                    data="Radius (meters):"
+                    name="radius"
+                    value={filter.radius}
+                    onChange={handleFilterChange}
+                  />
+                </div>
+              </div>
+            </div>
           </div>
+
           <div>
-            <label className="block mb-1">Longitude:</label>
-            <input
-              type="text"
-              name="lng"
-              value={filter.lng}
-              onChange={handleFilterChange}
-              placeholder="e.g., 2.3522"
-              className="w-full max-w-xs p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+            <ButtonTab refs={refs} name="Sort by:" />
+            <div className="next-hidden">
+              <div className="next-hidden__wrap">
+                {/* <select
+                  name="sort"
+                  value={filter.sort}
+                  onChange={handleFilterChange}
+                  className="w-full max-w-xs p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="date-asc">Date (Earliest First)</option>
+                  <option value="date-desc">Date (Latest First)</option>
+                  <option value="distance-asc">Nearest (By Distance)</option>
+                </select> */}
+                <Select
+                  selectItems={ORDERS}
+                  value={filter.sort}
+                  onChange={handleFilterChange}
+                  name="sort"
+                />
+              </div>
+            </div>
           </div>
-          <div>
-            <label className="block mb-1">Radius (meters):</label>
-            <input
-              type="text"
-              name="radius"
-              value={filter.radius}
-              onChange={handleFilterChange}
-              placeholder="e.g., 10000"
-              className="w-full max-w-xs p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-          <div>
-            <label className="block mb-1">Sort by:</label>
-            <select
-              name="sort"
-              value={filter.sort}
-              onChange={handleFilterChange}
-              className="w-full max-w-xs p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="date-asc">Date (Earliest First)</option>
-              <option value="date-desc">Date (Latest First)</option>
-              <option value="distance-asc">Nearest (By Distance)</option>
-            </select>
-          </div>
+
           {user && (
             <div>
               <label className="flex items-center">

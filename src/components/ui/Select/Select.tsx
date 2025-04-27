@@ -21,7 +21,6 @@ export default function Select({
   const [isOpen, setIsOpen] = useState(false);
 
   const handleSelect = (item: string) => {
-    // Создаём синтетическое событие, совместимое с handleChange
     const syntheticEvent = {
       target: { name, value: item },
     } as React.ChangeEvent<HTMLSelectElement>;
@@ -32,7 +31,9 @@ export default function Select({
   return (
     <div className={`relative ${className}`}>
       <div
-        className="p-2 border border-gray-300 rounded bg-white cursor-pointer flex justify-between items-center transition-all duration-300"
+        className={`select-custom p-2 border border-gray-300 rounded bg-white cursor-pointer flex justify-between items-center transition-all duration-300 ${
+          isOpen ? "run" : ""
+        }`}
         onClick={() => setIsOpen(!isOpen)}
       >
         <span>{value || "Select a category"}</span>
@@ -46,25 +47,27 @@ export default function Select({
           }`}
         />
       </div>
-      <ul
-        className={`absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded shadow-lg max-h-60 overflow-auto transition-all duration-300 ease-in-out ${
-          isOpen
-            ? "opacity-100 translate-y-0"
-            : "opacity-0 -translate-y-2 pointer-events-none"
-        }`}
+      <div
+        className={`z-10 w-full mt-1 bg-white  max-h-60 overflow-auto transition-all duration-300  ease-in-out next-hidden`}
       >
-        {selectItems.map((item) => (
-          <li
-            key={item}
-            className={`p-2 cursor-pointer hover:bg-blue-100 ${
-              value === item ? "bg-blue-50 font-semibold" : ""
-            }`}
-            onClick={() => handleSelect(item)}
-          >
-            {item}
-          </li>
-        ))}
-      </ul>
+        <div
+          className={`next-hidden__wrap select-list  `}
+        >
+          <ul className="">
+            {selectItems.map((item) => (
+              <li
+                key={item}
+                className={`p-2 cursor-pointer hover:bg-blue-100 ${
+                  value === item ? "bg-blue-50 font-semibold" : ""
+                }`}
+                onClick={() => handleSelect(item)}
+              >
+                {item}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
     </div>
   );
 }

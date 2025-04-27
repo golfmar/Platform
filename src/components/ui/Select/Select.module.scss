@@ -32,13 +32,14 @@
 
   }
 
+
   .dropdown-list {
     position: absolute;
     top: 35px;
     right: 0;
     width: 100%;
     text-align: left;
-    // background: white;
+
     border-radius: 5px;
     transform: scaleY(0);
     transform-origin: top;
@@ -52,20 +53,14 @@
   &._is-active {
     border-color: $success;
 
-    .dropdown-list {
-      z-index: 100;
-    }
-
-    // span {
-    //   color: $success;
-    // }
 
     & .dropdown-button svg {
       transform: translate(0%, -50%) rotate(180deg);
     }
 
     .dropdown-list {
-      border: 1px solid $success;
+      z-index: 100;
+
       transform: scaleY(1);
     }
   }
@@ -108,4 +103,8 @@
 
 
 
+}
+
+.select-list {
+  border: 1px solid $blue6;
 }

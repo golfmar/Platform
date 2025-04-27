@@ -120,20 +120,6 @@ const Calendar: React.FC<CalendarProps> = ({
       <ModalMessage message={successMessage} open={openModalMessage} />
 
       <div className={`${styles["calendar"]} ${styles["rel"]}`}>
-        <p className="">
-          selectedDate:{" "}
-          {internalSelectedDate
-            ? internalSelectedDate.toLocaleString("de-DE", {
-                day: "2-digit",
-                month: "2-digit",
-                year: "numeric",
-                hour: "2-digit",
-                minute: "2-digit",
-                second: "2-digit",
-                hour12: false,
-              })
-            : "Not selected"}
-        </p>
         <div className={`${styles["calendar-header"]}`}>
           <button
             type="button"

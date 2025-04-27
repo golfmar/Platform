@@ -33,3 +33,49 @@ button {
 textarea {
   resize: none;
 }
+
+
+.next-hidden {
+  display: grid;
+  grid-template-rows: 0fr;
+  overflow: hidden;
+  transition: all 0.3s ease-in-out;
+
+  .next-hidden__wrap {
+    min-height: 0;
+  }
+}
+
+
+.run {
+  animation-name: run;
+  animation-duration: .3s;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: 1;
+  animation-direction: normal;
+  animation-fill-mode: forwards;
+  animation-play-state: running;
+  background-color: #CBD5E1;
+  padding: 0 5px;
+  border-radius: 4px;
+
+  &+.next-hidden {
+    grid-template-rows: 1fr;
+  }
+}
+
+
+
+@keyframes run {
+  0% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.1);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import dynamic from "next/dynamic";
 import toast, { Toaster } from "react-hot-toast";
 import AuthForm from "@/components/AuthForm";
@@ -11,6 +11,8 @@ import Input from "@/components/ui/Input/Input";
 import Select from "@/components/ui/Select/Select";
 import Calendar from "@/components/ui/Calendar/Calendar";
 import ClockUhr from "@/components/ui/ClockUhr/ClockUhr";
+import ButtonTab from "@/components/ButtonTab";
+
 const Map = dynamic(() => import("@/components/Map"), { ssr: false });
 const CreateEventModal = dynamic(
   () => import("@/components/CreateEventModal"),
@@ -63,7 +65,8 @@ export default function Home() {
   const [page, setPage] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const eventsPerPage = 5;
-
+  const refs = useRef<(HTMLButtonElement | null)[]>([]);
+  // const refItem = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     console.log("<===filter=====>", filter);
   }, [filter]);
@@ -172,7 +175,34 @@ export default function Home() {
     }
     fetchEvents();
   }, [filter, user, page]);
+  // ----------------------------------------
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      e.stopPropagation();
 
+      if (
+        e.target instanceof Node &&
+        !e.target.closest(".button-tab") &&
+        !e.target.closest(".next-hidden")
+      ) {
+        refs.current.forEach((btn) => {
+          if (btn && btn.classList.contains("run")) {
+            btn.classList.remove("run");
+          }
+        });
+      }
+    };
+
+    // Добавляем обработчик события на документ
+    document.addEventListener("click", handleClickOutside);
+
+    // Убираем обработчик при размонтировании компонента
+    return () => {
+      document.removeEventListener("click", handleClickOutside);
+    };
+  }, []);
+
+  // ----------------------------------------
   const handleCreateEvent = async (formData: FormData) => {
     setIsLoading(true);
     if (!user) {
@@ -411,27 +441,89 @@ export default function Home() {
             </button>
           </div>
         )}
-
         <div className="space-y-3">
           <div>
-            <label className="block mb-1">Title:</label>
-            <Input
-              typeInput="text"
-              data="e.g., Art"
-              name="title"
-              value={filter.title}
-              onChange={handleFilterChange}
-            />
+            <ButtonTab refs={refs} name="test" />
+            <div className="next-hidden">
+              <div className="next-hidden__wrap">
+                <ButtonTab refs={refs} name="test1" />
+                <div className="next-hidden">
+                  <div className="next-hidden__wrap">
+                    <ButtonTab refs={refs} name="test2" />
+                    <div className="next-hidden">
+                      <div className="next-hidden__wrap">test2 content</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
           <div>
-            <label className="block mb-1">Category:</label>
-            <Select
-              selectItems={CATEGORIES}
-              value={filter.category}
-              onChange={handleFilterChange}
-              name="category"
-            />
+            <button
+              type="button"
+              data-name="title"
+              ref={(el) => {
+                if (el && !refs.current.includes(el)) {
+                  refs.current.push(el);
+                }
+              }}
+              onClick={(e) => {
+                refs.current.forEach((btn) => {
+                  if (btn?.dataset.name === "title") {
+                    btn.classList.add("run");
+                  } else if (btn) {
+                    btn.classList.remove("run");
+                  }
+                });
+              }}
+            >
+              Title:
+            </button>
+            <div className="next-hidden">
+              <div className="next-hidden__wrap">
+                <Input
+                  typeInput="text"
+                  data="e.g., Art"
+                  name="title"
+                  value={filter.title}
+                  onChange={handleFilterChange}
+                />
+              </div>
+            </div>
           </div>
+          <div>
+            <button
+              type="button"
+              data-name="category"
+              ref={(el) => {
+                if (el && !refs.current.includes(el)) {
+                  refs.current.push(el);
+                }
+              }}
+              onClick={(e) => {
+                refs.current.forEach((btn) => {
+                  if (btn?.dataset.name === "category") {
+                    btn.classList.add("run");
+                  } else if (btn) {
+                    btn.classList.remove("run");
+                  }
+                });
+              }}
+            >
+              Category:
+            </button>
+            <div className="next-hidden">
+              <div className="next-hidden__wrap">
+                <Select
+                  selectItems={CATEGORIES}
+                  value={filter.category}
+                  onChange={handleFilterChange}
+                  name="category"
+                />
+              </div>
+            </div>
+          </div>
+
           <div>
             <label className="block mb-1">Start Date Interval:</label>
             <div>
@@ -585,7 +677,6 @@ export default function Home() {
               />
             </div>
           </div>
-
           <div>
             <label className="block mb-1">Latitude:</label>
             <input

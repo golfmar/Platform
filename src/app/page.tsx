@@ -11,7 +11,9 @@ import Input from "@/components/ui/Input/Input";
 import Select from "@/components/ui/Select/Select";
 import Calendar from "@/components/ui/Calendar/Calendar";
 import ClockUhr from "@/components/ui/ClockUhr/ClockUhr";
-import ButtonTab from "@/components/ButtonTab";
+import ButtonTab from "@/components/ui/ButtonTab/ButtonTab";
+import Tabs from "@/components/ui/Tabs/Tabs";
+import InputCheck from "@/components/ui/InputCheck/InputCheck";
 
 const Map = dynamic(() => import("@/components/Map"), { ssr: false });
 const CreateEventModal = dynamic(
@@ -192,11 +194,7 @@ export default function Home() {
         });
       }
     };
-
-    // Добавляем обработчик события на документ
     document.addEventListener("click", handleClickOutside);
-
-    // Убираем обработчик при размонтировании компонента
     return () => {
       document.removeEventListener("click", handleClickOutside);
     };
@@ -443,22 +441,6 @@ export default function Home() {
         )}
         <div className="space-y-3">
           <div>
-            <ButtonTab refs={refs} name="test" />
-            <div className="next-hidden">
-              <div className="next-hidden__wrap">
-                <ButtonTab refs={refs} name="test1" />
-                <div className="next-hidden">
-                  <div className="next-hidden__wrap">
-                    <ButtonTab refs={refs} name="test2" />
-                    <div className="next-hidden">
-                      <div className="next-hidden__wrap">test2 content</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div>
             <ButtonTab refs={refs} name="Title:" />
             <div className="next-hidden">
               <div className="next-hidden__wrap">
@@ -693,16 +675,6 @@ export default function Home() {
             <ButtonTab refs={refs} name="Sort by:" />
             <div className="next-hidden">
               <div className="next-hidden__wrap">
-                {/* <select
-                  name="sort"
-                  value={filter.sort}
-                  onChange={handleFilterChange}
-                  className="w-full max-w-xs p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="date-asc">Date (Earliest First)</option>
-                  <option value="date-desc">Date (Latest First)</option>
-                  <option value="distance-asc">Nearest (By Distance)</option>
-                </select> */}
                 <Select
                   selectItems={ORDERS}
                   value={filter.sort}
@@ -716,14 +688,13 @@ export default function Home() {
           {user && (
             <div>
               <label className="flex items-center">
-                <input
+                <InputCheck
                   type="checkbox"
-                  name="myEvents"
-                  checked={filter.myEvents}
+                  data="myEvents"
+                  value={filter.myEvents ? "true" : "false"}
+                  checkedValue="true"
                   onChange={handleFilterChange}
-                  className="mr-2 h-4 w-4 text-blue-500 focus:ring-blue-500 border-gray-300 rounded"
                 />
-                My Events Only
               </label>
             </div>
           )}

@@ -93,7 +93,7 @@ const ClockUhr: React.FC<InputProps> = ({ value, onChange, disabled }) => {
                   top: `calc(50% + ${Math.round(y * 1.4)}px)`,
                   transform: "translate(-50%, -50%)",
                 }}
-                onMouseEnter={() => handleTimeClick(h, Number(minute))}
+                onClick={() => handleTimeClick(h, Number(minute))}
               >
                 {h}
               </div>
@@ -127,7 +127,7 @@ const ClockUhr: React.FC<InputProps> = ({ value, onChange, disabled }) => {
                   top: `calc(50% + ${Math.round(y)}px)`,
                   transform: "translate(-50%, -50%)",
                 }}
-                onMouseEnter={() => handleTimeClick(Number(hour), m)}
+                onClick={() => handleTimeClick(Number(hour), m)}
               >
                 {m}
               </div>

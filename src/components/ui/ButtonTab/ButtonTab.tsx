@@ -39,7 +39,7 @@ export default function ButtonTab({ refs, name }: ButtonTabProps) {
       }}
     >
       <Image
-        src="./assets/svg/click.svg"
+        src="/assets/svg/click.svg"
         alt="click"
         width={15}
         height={15}

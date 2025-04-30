@@ -2,7 +2,6 @@
 
 .calendar {
   width: 310px;
-  margin: 0 auto;
   font-family: Arial, sans-serif;
   background: $blue9;
   border-radius: 5px;
@@ -90,8 +89,8 @@
       color: white;
 
       &:hover {
-        background-color: $blue8;
-        color: white;
+        background-color: $blue7 !important;
+        color: white !important;
       }
     }
 

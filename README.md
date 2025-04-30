@@ -1,3 +1,30 @@
+# Recommended for most uses
+
+DATABASE_URL=postgres://neondb_owner:npg_8rEO1Mtdxozv@ep-shiny-wind-a26vukin-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require
+
+# For uses requiring a connection without pgbouncer
+
+DATABASE_URL_UNPOOLED=postgresql://neondb_owner:npg_8rEO1Mtdxozv@ep-shiny-wind-a26vukin.eu-central-1.aws.neon.tech/neondb?sslmode=require
+
+# Parameters for constructing your own connection string
+
+PGHOST=ep-shiny-wind-a26vukin-pooler.eu-central-1.aws.neon.tech
+PGHOST_UNPOOLED=ep-shiny-wind-a26vukin.eu-central-1.aws.neon.tech
+PGUSER=neondb_owner
+PGDATABASE=neondb
+PGPASSWORD=npg_8rEO1Mtdxozv
+
+# Parameters for Vercel Postgres Templates
+
+POSTGRES_URL=postgres://neondb_owner:npg_8rEO1Mtdxozv@ep-shiny-wind-a26vukin-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require
+POSTGRES_URL_NON_POOLING=postgres://neondb_owner:npg_8rEO1Mtdxozv@ep-shiny-wind-a26vukin.eu-central-1.aws.neon.tech/neondb?sslmode=require
+POSTGRES_USER=neondb_owner
+POSTGRES_HOST=ep-shiny-wind-a26vukin-pooler.eu-central-1.aws.neon.tech
+POSTGRES_PASSWORD=npg_8rEO1Mtdxozv
+POSTGRES_DATABASE=neondb
+POSTGRES_URL_NO_SSL=postgres://neondb_owner:npg_8rEO1Mtdxozv@ep-shiny-wind-a26vukin-pooler.eu-central-1.aws.neon.tech/neondb
+POSTGRES_PRISMA_URL=postgres://neondb_owner:npg_8rEO1Mtdxozv@ep-shiny-wind-a26vukin-pooler.eu-central-1.aws.neon.tech/neondb?connect_timeout=15&sslmode=require
+
 запускать докер
 npm run dev
 npx ts-node src/test-prisma.ts
@@ -227,9 +254,6 @@ https://grok.com/chat/a73bf0d5-118c-4c70-9416-5e61bd31dc71
 24---https://grok.com/chat/46add9c6-155d-41c4-a285-66660cc6a9ca
 25----https://grok.com/chat/a73bf0d5-118c-4c70-9416-5e61bd31dc71
 25---https://grok.com/chat/a73bf0d5-118c-4c70-9416-5e61bd31dc71
-
-
-
 
 Идеи для улучшения приложения
 Уведомления с react-hot-toast:

@@ -14,6 +14,7 @@ import ClockUhr from "@/components/ui/ClockUhr/ClockUhr";
 import ButtonTab from "@/components/ui/ButtonTab/ButtonTab";
 import Tabs from "@/components/ui/Tabs/Tabs";
 import InputCheck from "@/components/ui/InputCheck/InputCheck";
+import EventCard from "@/components/EventCard/EventCard";
 
 const Map = dynamic(() => import("@/components/Map"), { ssr: false });
 const CreateEventModal = dynamic(
@@ -36,16 +37,22 @@ interface Event {
 }
 
 const CATEGORIES = [
-  "Concert",
-  "Exhibition",
-  "Sports",
-  "Workshop",
-  "Conference",
-  "Other",
+  { name: "Concert", value: "Concert" },
+  { name: "Exhibition", value: "Exhibition" },
+  { name: "Sports", value: "Sports" },
+  { name: "Workshop", value: "Workshop" },
+  { name: "Conference", value: "Conference" },
+  { name: "Other", value: "Other" },
 ];
-const ORDERS = ["date-asc", "date-desc", "distance-asc"];
+const ORDERS = [
+  { name: "Date: Soonest First", value: "date-asc" },
+  { name: "Date: Latest First", value: "date-desc" },
+  { name: "Distance: Nearest First", value: "distance-asc" },
+];
+
 export default function Home() {
   const [events, setEvents] = useState<Event[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
   const initialFilter = {
     lat: "",
     lng: "",
@@ -58,7 +65,6 @@ export default function Home() {
     category: "",
   };
   const [filter, setFilter] = useState(initialFilter);
-
   const [user, setUser] = useState<{ token: string; email: string } | null>(
     null
   );
@@ -67,30 +73,7 @@ export default function Home() {
   const [page, setPage] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const eventsPerPage = 5;
-  const refs = useRef<(HTMLButtonElement | null)[]>([]);
-  // const refItem = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    console.log("<===filter=====>", filter);
-  }, [filter]);
-
-  const calculateDistance = (
-    lat1: number,
-    lng1: number,
-    lat2: number,
-    lng2: number
-  ): number => {
-    const R = 6371;
-    const dLat = (lat2 - lat1) * (Math.PI / 180);
-    const dLng = (lng2 - lng1) * (Math.PI / 180);
-    const a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(lat1 * (Math.PI / 180)) *
-        Math.cos(lat2 * (Math.PI / 180)) *
-        Math.sin(dLng / 2) *
-        Math.sin(dLng / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c * 1000;
-  };
+  const refs = useRef<Array<HTMLButtonElement | null>>([]);
 
   const stopBodyScroll = () => {
     document.body.style.overflow = "hidden";
@@ -114,74 +97,69 @@ export default function Home() {
     setPage(1);
   };
 
-  useEffect(() => {
-    async function fetchEvents() {
-      try {
-        console.log("Fetching events with filter:", filter);
-        const params = new URLSearchParams();
-        if (filter.lat) params.append("lat", filter.lat);
-        if (filter.lng) params.append("lng", filter.lng);
-        if (filter.radius) params.append("radius", filter.radius);
-        if (filter.title) params.append("title", filter.title);
-        if (filter.startDate) {
-          const startDate = new Date(filter.startDate);
-          const utcStartDate = startDate.toISOString();
-          params.append("startDate", utcStartDate);
-        }
-        if (filter.endDate) {
-          const endDate = new Date(filter.endDate);
-          const utcEndDate = endDate.toISOString();
-          params.append("endDate", utcEndDate);
-        }
-        if (filter.myEvents) params.append("myEvents", "true");
-        params.append("category", filter.category || "");
-        params.append("limit", eventsPerPage.toString());
-        params.append("offset", ((page - 1) * eventsPerPage).toString());
-        const headers: HeadersInit = {};
-        if (filter.myEvents && user) {
-          headers["Authorization"] = `Bearer ${user.token}`;
-        }
-        const response = await fetch(`/api/events?${params}`, { headers });
-        if (!response.ok) throw new Error("Failed to fetch events");
-        let data = await response.json();
-        console.log("Events fetched:", data);
+  const handleMapClick = (lat: number, lng: number) => {
+    setFilter({
+      ...filter,
+      lat: lat.toString(),
+      lng: lng.toString(),
+      sort: "distance-asc",
+    });
+    toast.success("Location selected! Sorting events by distance.");
+  };
 
-        data = data.sort((a: Event, b: Event) => {
-          if (filter.sort === "distance-asc" && filter.lat && filter.lng) {
-            const lat = parseFloat(filter.lat);
-            const lng = parseFloat(filter.lng);
-            if (!a.location || !b.location) return 0;
-            const matchA = a.location.match(/POINT\(([^ ]+) ([^)]+)\)/);
-            const matchB = b.location.match(/POINT\(([^ ]+) ([^)]+)\)/);
-            if (!matchA || !matchB) return 0;
-            const eventLatA = parseFloat(matchA[2]);
-            const eventLngA = parseFloat(matchA[1]);
-            const eventLatB = parseFloat(matchB[2]);
-            const eventLngB = parseFloat(matchB[1]);
-            const distA = calculateDistance(lat, lng, eventLatA, eventLngA);
-            const distB = calculateDistance(lat, lng, eventLatB, eventLngB);
-            return distA - distB;
-          }
-          const dateA = new Date(a.event_date).getTime();
-          const dateB = new Date(b.event_date).getTime();
-          return filter.sort === "date-asc" ? dateA - dateB : dateB - dateA;
-        });
-
-        setEvents(data);
-      } catch (err: any) {
-        console.error("Fetch error:", err);
-        toast.error("Failed to fetch events");
-      } finally {
-        setIsLoading(false);
+  const fetchEvents = async () => {
+    try {
+      console.log("Fetching events with filter:", filter, "Page:", page);
+      const params = new URLSearchParams();
+      if (filter.lat) params.append("lat", filter.lat);
+      if (filter.lng) params.append("lng", filter.lng);
+      if (filter.radius) params.append("radius", filter.radius);
+      if (filter.title) params.append("title", filter.title);
+      if (filter.startDate) {
+        const startDate = new Date(filter.startDate);
+        const utcStartDate = startDate.toISOString();
+        params.append("startDate", utcStartDate);
       }
+      if (filter.endDate) {
+        const endDate = new Date(filter.endDate);
+        const utcEndDate = endDate.toISOString();
+        params.append("endDate", utcEndDate);
+      }
+      if (filter.myEvents) params.append("myEvents", "true");
+      params.append("category", filter.category || "");
+      params.append("sortOrder", filter.sort);
+      params.append("limit", eventsPerPage.toString());
+      params.append("offset", ((page - 1) * eventsPerPage).toString());
+      const headers: HeadersInit = {};
+      if (filter.myEvents && user) {
+        headers["Authorization"] = `Bearer ${user.token}`;
+      }
+      const response = await fetch(`/api/events?${params}`, { headers });
+      if (!response.ok) throw new Error("Failed to fetch events");
+      const { events: data, totalCount: count } = await response.json();
+      console.log("Events fetched:", data, "Total count:", count);
+      setEvents(data);
+      setTotalCount(count);
+    } catch (err: any) {
+      console.error("Fetch error:", err);
+      toast.error("Failed to fetch events");
+    } finally {
+      setIsLoading(false);
     }
-    fetchEvents();
+  };
+
+  useEffect(() => {
+    if (filter.sort === "distance-asc" && (!filter.lat || !filter.lng)) {
+      toast.error("Please select a location on the map for distance sorting");
+      setFilter({ ...filter, sort: "date-asc" });
+    } else {
+      fetchEvents();
+    }
   }, [filter, user, page]);
-  // ----------------------------------------
+
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       e.stopPropagation();
-
       if (
         e.target instanceof Node &&
         !e.target.closest(".button-tab") &&
@@ -200,7 +178,6 @@ export default function Home() {
     };
   }, []);
 
-  // ----------------------------------------
   const handleCreateEvent = async (formData: FormData) => {
     setIsLoading(true);
     if (!user) {
@@ -222,12 +199,11 @@ export default function Home() {
         const errorData = await response.json();
         throw new Error(errorData.error || "Failed to create event");
       }
-      const newEvent = await response.json();
-      setEvents([...events, newEvent].slice(0, eventsPerPage));
+      await fetchEvents(); // Перезапрашиваем события для синхронизации
       toast.success("Event created successfully!");
     } catch (err: any) {
       console.error("Create error:", err);
-      throw err;
+      toast.error(err.message || "Failed to create event");
     } finally {
       setIsLoading(false);
     }
@@ -281,7 +257,14 @@ export default function Home() {
         const errorData = await response.json();
         throw new Error(errorData.error || "Failed to delete event");
       }
-      setEvents(events.filter((e) => e.id !== id));
+      const updatedEvents = events.filter((e) => e.id !== id);
+      setEvents(updatedEvents);
+      setTotalCount(totalCount - 1); // Уменьшаем totalCount
+      if (updatedEvents.length === 0 && page > 1) {
+        setPage(1); // Сбрасываем на первую страницу
+      } else {
+        await fetchEvents(); // Перезапрашиваем события для синхронизации
+      }
       toast.success("Event deleted successfully!");
     } catch (err: any) {
       console.error("Delete error:", err);
@@ -429,7 +412,11 @@ export default function Home() {
       <div className="mb-5">
         <h2 className="text-xl font-semibold mb-3">Filter Events</h2>
 
-        {filter.startDate && (
+        {(filter.startDate ||
+          filter.lat ||
+          filter.lng ||
+          filter.title ||
+          filter.category) && (
           <div className="mb-3">
             <button
               onClick={resetFilters}
@@ -467,7 +454,6 @@ export default function Home() {
               </div>
             </div>
           </div>
-
           <div>
             <ButtonTab refs={refs} name="Start Date Interval:" />
             <div className="next-hidden">
@@ -508,7 +494,6 @@ export default function Home() {
                     } as React.ChangeEvent<HTMLInputElement>);
                   }}
                 />
-
                 <label className="block mb-1">
                   Time:
                   {filter.startDate && (
@@ -592,7 +577,6 @@ export default function Home() {
                     } as React.ChangeEvent<HTMLInputElement>);
                   }}
                 />
-
                 <label className="block mb-1">
                   Time:{" "}
                   {filter.endDate && (
@@ -611,7 +595,6 @@ export default function Home() {
                   disabled={!filter.endDate}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                     if (!filter.endDate) return;
-
                     const cleanedTime = e.target.value.trim();
                     if (/^\d{2}:\d{2}$/.test(cleanedTime)) {
                       const currentDate =
@@ -635,12 +618,14 @@ export default function Home() {
               </div>
             </div>
           </div>
-
           <div>
-            <ButtonTab refs={refs} name="Koordinaten:" />
+            <ButtonTab refs={refs} name="Coordinates (optional):" />
             <div className="next-hidden">
               <div className="next-hidden__wrap">
-                <div className="mt-4 w-full px-1  ">
+                <p className="text-sm text-gray-600 mb-2">
+                  Enter coordinates or click on the map to select a location
+                </p>
+                <div className="mt-4 w-full px-1">
                   <Input
                     typeInput="text"
                     data="Longitude:"
@@ -649,7 +634,7 @@ export default function Home() {
                     onChange={handleFilterChange}
                   />
                 </div>
-                <div className="mt-4 w-full   px-1   ">
+                <div className="mt-4 w-full px-1">
                   <Input
                     typeInput="text"
                     data="Latitude:"
@@ -658,7 +643,7 @@ export default function Home() {
                     onChange={handleFilterChange}
                   />
                 </div>
-                <div className="mt-6 w-full   px-1  py-2 ">
+                <div className="mt-6 w-full px-1 py-2">
                   <Input
                     typeInput="text"
                     data="Radius (meters):"
@@ -670,7 +655,6 @@ export default function Home() {
               </div>
             </div>
           </div>
-
           <div>
             <ButtonTab refs={refs} name="Sort by:" />
             <div className="next-hidden">
@@ -684,87 +668,34 @@ export default function Home() {
               </div>
             </div>
           </div>
-
           {user && (
-            <div>
-              <label className="flex items-center">
-                <InputCheck
-                  type="checkbox"
-                  data="myEvents"
-                  value={filter.myEvents ? "true" : "false"}
-                  checkedValue="true"
-                  onChange={handleFilterChange}
-                />
-              </label>
-            </div>
+            <InputCheck
+              type="checkbox"
+              data="myEvents"
+              value={filter.myEvents ? "true" : "false"}
+              checkedValue="true"
+              onChange={handleFilterChange}
+            />
           )}
         </div>
       </div>
 
-      <Map events={events} />
+      <Map events={events} onMapClick={handleMapClick} />
 
       {events.length === 0 ? (
         <p>No events found</p>
       ) : (
         <>
-          <ul className="space-y-4">
+          <ul className="space-y-4 mt-4">
             {events.map((event) => (
-              <li key={event.id} className="border-b pb-2">
-                <div className="flex space-x-4">
-                  {event.image_url && (
-                    <img
-                      src={event.image_url}
-                      alt={event.title}
-                      className="w-24 h-24 object-cover rounded"
-                    />
-                  )}
-                  <div>
-                    <h2 className="text-lg font-semibold">
-                      <Link
-                        href={`/events/${event.id}`}
-                        className="text-blue-500 hover:underline"
-                      >
-                        {event.title}
-                      </Link>
-                    </h2>
-                    <p>
-                      Date and Time:{" "}
-                      {new Date(event.event_date).toLocaleString("de-DE", {
-                        day: "2-digit",
-                        month: "2-digit",
-                        year: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                        hour12: false,
-                      })}
-                    </p>
-                    <p>Category: {event.category || "None"}</p>
-                    <p>Description: {event.description || "None"}</p>
-                    <p>Location: {event.location || "Unknown"}</p>
-                    <p className="text-sm text-gray-600">
-                      Created by: {event.organizer_email}
-                    </p>
-                    {user && user.email === event.organizer_email && (
-                      <div className="mt-2 flex space-x-2">
-                        <button
-                          onClick={() => {
-                            stopBodyScroll();
-                            handleEdit(event);
-                          }}
-                          className="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleDelete(event.id)}
-                          className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
+              <li key={event.id} className="">
+                <EventCard
+                  event={event}
+                  user={user}
+                  handleEdit={handleEdit}
+                  handleDelete={handleDelete}
+                  stopBodyScroll={stopBodyScroll}
+                />
               </li>
             ))}
           </ul>
@@ -773,7 +704,9 @@ export default function Home() {
             page={page}
             setPage={setPage}
             events={events}
+            veterinarians
             eventsPerPage={eventsPerPage}
+            totalCount={totalCount}
           />
         </>
       )}

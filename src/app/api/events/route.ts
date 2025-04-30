@@ -18,15 +18,16 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
-    const lat = parseFloat(searchParams.get("lat") || "");
-    const lng = parseFloat(searchParams.get("lng") || "");
+    const lat = parseFloat(searchParams.get("lat") || "NaN");
+    const lng = parseFloat(searchParams.get("lng") || "NaN");
     const radius = parseFloat(searchParams.get("radius") || "10000");
     const title = searchParams.get("title") || "";
     const startDate = searchParams.get("startDate") || "";
     const endDate = searchParams.get("endDate") || "";
     const myEvents = searchParams.get("myEvents") === "true";
     const category = searchParams.get("category") || "";
-    const limit = parseInt(searchParams.get("limit") || "5");
+    const sortOrder = searchParams.get("sortOrder") || "date-asc";
+    const limit = parseInt(searchParams.get("limit") || "2"); // Совпадает с eventsPerPage=2
     const offset = parseInt(searchParams.get("offset") || "0");
     const authHeader = request.headers.get("Authorization");
 
@@ -53,7 +54,6 @@ export async function GET(request: Request) {
       if (!events || !Array.isArray(events) || events.length === 0) {
         return NextResponse.json({ error: "Event not found" }, { status: 404 });
       }
-      // Преобразуем event_date в ISO-строку для корректного парсинга
       const event = {
         ...events[0],
         event_date: new Date(events[0].event_date).toISOString(),
@@ -62,63 +62,113 @@ export async function GET(request: Request) {
       return NextResponse.json(event);
     }
 
-    // Существующий запрос списка с пагинацией
-    let query = `
-      SELECT e.id, e.title, e.event_date, e.description, ST_AsText(e.location) as location, u.email as organizer_email, e.category, e.image_url
-      FROM events e
-      JOIN users u ON e.organizer_id = u.id
-      WHERE 1=1
-    `;
+    // Построение условий фильтрации
+    let whereClause = `WHERE 1=1`;
     const params: any[] = [];
+    let paramIndex = 1;
 
     if (lat && lng && !isNaN(lat) && !isNaN(lng)) {
-      query += `
+      whereClause += `
         AND ST_DWithin(
           e.location,
-          ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography,
-          $3
-        )
-      `;
+          ST_SetSRID(ST_MakePoint($${paramIndex}, $${
+        paramIndex + 1
+      }), 4326)::geography,
+          $${paramIndex + 2}
+        )`;
       params.push(lng, lat, radius);
+      paramIndex += 3;
     }
 
     if (title) {
-      query += ` AND e.title ILIKE $${params.length + 1}`;
+      whereClause += ` AND e.title ILIKE $${paramIndex}`;
       params.push(`%${title}%`);
+      paramIndex++;
     }
 
     if (startDate) {
-      query += ` AND e.event_date >= $${params.length + 1}`;
+      whereClause += ` AND e.event_date >= $${paramIndex}`;
       params.push(new Date(startDate));
+      paramIndex++;
     }
 
     if (endDate) {
-      query += ` AND e.event_date <= $${params.length + 1}`;
+      whereClause += ` AND e.event_date <= $${paramIndex}`;
       params.push(new Date(endDate));
+      paramIndex++;
     }
 
     if (category) {
-      query += ` AND e.category = $${params.length + 1}`;
+      whereClause += ` AND e.category = $${paramIndex}`;
       params.push(category);
+      paramIndex++;
     }
 
     if (myEvents && userId) {
-      query += ` AND e.organizer_id = $${params.length + 1}`;
+      whereClause += ` AND e.organizer_id = $${paramIndex}`;
       params.push(userId);
+      paramIndex++;
     }
 
-    query += ` LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
-    params.push(limit, offset);
+    // Подсчет общего количества событий
+    const countQuery = `
+      SELECT COUNT(*) as count
+      FROM events e
+      JOIN users u ON e.organizer_id = u.id
+      ${whereClause}
+    `;
+    console.log("<====count query====>", countQuery, params);
+    const countResult = await prisma.$queryRawUnsafe(countQuery, ...params);
+    const totalCount = Number(countResult[0].count);
+    console.log("<====total count====>", totalCount);
 
+    // Построение сортировки
+    let orderByClause = "";
+    if (sortOrder === "date-asc") {
+      orderByClause = `ORDER BY e.event_date ASC`;
+    } else if (sortOrder === "date-desc") {
+      orderByClause = `ORDER BY e.event_date DESC`;
+    } else if (
+      sortOrder === "distance-asc" &&
+      lat &&
+      lng &&
+      !isNaN(lat) &&
+      !isNaN(lng)
+    ) {
+      orderByClause = `
+        ORDER BY ST_Distance(
+          e.location,
+          ST_SetSRID(ST_MakePoint($${paramIndex}, $${
+        paramIndex + 1
+      }), 4326)::geography
+        ) ASC`;
+      params.push(lng, lat);
+      paramIndex += 2;
+    } else {
+      orderByClause = `ORDER BY e.event_date ASC`; // Фallback
+    }
+
+    // Запрос списка событий с пагинацией
+    const query = `
+      SELECT e.id, e.title, e.event_date, e.description, ST_AsText(e.location) as location, u.email as organizer_email, e.category, e.image_url
+      FROM events e
+      JOIN users u ON e.organizer_id = u.id
+      ${whereClause}
+      ${orderByClause}
+      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+    `;
+    params.push(limit, offset);
     console.log("<====query====>", query, params);
     const events = await prisma.$queryRawUnsafe(query, ...params);
     console.log("<====events====>", events);
+
     // Преобразуем event_date для списка событий
     const formattedEvents = events.map((event: any) => ({
       ...event,
       event_date: new Date(event.event_date).toISOString(),
     }));
-    return NextResponse.json(formattedEvents);
+
+    return NextResponse.json({ events: formattedEvents, totalCount });
   } catch (error) {
     console.error("<====error====>", error);
     return NextResponse.json(

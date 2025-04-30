@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import dynamic from "next/dynamic";
 import toast from "react-hot-toast";
 import Input from "./ui/Input/Input";
 import Select from "./ui/Select/Select";
 import Calendar from "./ui/Calendar/Calendar";
+import ClockUhr from "./ui/ClockUhr/ClockUhr";
 import Image from "next/image";
 
 const LocationPickerMap = dynamic(() => import("./LocationPickerMap"), {
@@ -13,12 +14,12 @@ const LocationPickerMap = dynamic(() => import("./LocationPickerMap"), {
 });
 
 const CATEGORIES = [
-  "Concert",
-  "Exhibition",
-  "Sports",
-  "Workshop",
-  "Conference",
-  "Other",
+  { name: "Concert", value: "Concert" },
+  { name: "Exhibition", value: "Exhibition" },
+  { name: "Sports", value: "Sports" },
+  { name: "Workshop", value: "Workshop" },
+  { name: "Conference", value: "Conference" },
+  { name: "Other", value: "Other" },
 ];
 
 interface EditEventModalProps {
@@ -41,18 +42,9 @@ export default function EditEventModal({
   onClose,
 }: EditEventModalProps) {
   const [form, setForm] = useState({
-    id: event.id,
-    title: event.title,
-    event_date: new Date(event.event_date)
-      .toLocaleDateString("de-DE", {
-        timeZone: "Europe/Berlin",
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-      })
-      .split(".")
-      .reverse()
-      .join("-"),
+    title: event.title || "",
+    event_date: "",
+    event_time: "",
     description: event.description || "",
     location: event.location || "",
     address: "",
@@ -63,7 +55,60 @@ export default function EditEventModal({
     event.image_url
   );
   const [isSearching, setIsSearching] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (event) {
+      // Парсим event_date с учетом локали Германии
+      const eventDate = new Date(event.event_date);
+      if (isNaN(eventDate.getTime())) {
+        toast.error("Invalid event date format");
+        return;
+      }
+
+      const tzDate = new Date(
+        eventDate.toLocaleString("en-US", { timeZone: "Europe/Berlin" })
+      );
+
+      const year = tzDate.getFullYear();
+      const month = String(tzDate.getMonth() + 1).padStart(2, "0");
+      const day = String(tzDate.getDate()).padStart(2, "0");
+      const hours = String(tzDate.getHours()).padStart(2, "0");
+      const minutes = String(tzDate.getMinutes()).padStart(2, "0");
+
+      const formattedDate = `${year}-${month}-${day}`;
+      const formattedTime = `${hours}:${minutes}`;
+
+      setForm({
+        title: event.title || "",
+        event_date: formattedDate,
+        event_time: formattedTime,
+        description: event.description || "",
+        location: event.location || "",
+        address: "",
+        category: event.category || "Other",
+      });
+      setImagePreview(event.image_url);
+    }
+  }, [event]);
+
+  const validateAndSetDate = (date: Date | null): Date => {
+    if (!date || isNaN(date.getTime())) {
+      toast.error("Invalid date selected");
+      return new Date();
+    }
+
+    const now = new Date();
+    const selected = new Date(date);
+    selected.setHours(0, 0, 0, 0);
+    const today = new Date(now);
+    today.setHours(0, 0, 0, 0);
+
+    if (selected < today) {
+      toast.error("Date must be in the future!");
+      return today;
+    }
+    return date;
+  };
 
   const handleChange = (
     e: React.ChangeEvent<
@@ -73,18 +118,22 @@ export default function EditEventModal({
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  const handleDateChange = (date: Date) => {
-    const formattedDate = date
-      .toLocaleDateString("de-DE", {
-        timeZone: "Europe/Berlin",
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-      })
-      .split(".")
-      .reverse()
-      .join("-");
-    setForm({ ...form, event_date: formattedDate });
+  const handleDateChange = (date: Date | null) => {
+    const validatedDate = validateAndSetDate(date);
+    const tzDate = new Date(
+      validatedDate.toLocaleString("en-US", { timeZone: "Europe/Berlin" })
+    );
+
+    const year = tzDate.getFullYear();
+    const month = String(tzDate.getMonth() + 1).padStart(2, "0");
+    const day = String(tzDate.getDate()).padStart(2, "0");
+
+    const formattedDate = `${year}-${month}-${day}`;
+    setForm((prevForm) => ({ ...prevForm, event_date: formattedDate }));
+  };
+
+  const handleTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setForm({ ...form, event_time: e.target.value });
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -108,7 +157,7 @@ export default function EditEventModal({
       const response = await fetch(
         `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
           form.address
-        )}&addressdetails=1&limit=1`
+        )}`
       );
       const data = await response.json();
       if (data.length > 0) {
@@ -120,7 +169,6 @@ export default function EditEventModal({
         toast.error("Address not found");
       }
     } catch (err: any) {
-      console.error("Geocode error:", err);
       toast.error("Error searching address");
     } finally {
       setIsSearching(false);
@@ -131,59 +179,55 @@ export default function EditEventModal({
     setForm({ ...form, location, address: "" });
   };
 
-  const handleResetLocation = () => {
-    setForm({ ...form, address: "", location: event.location || "" });
-    toast.success("Location reset");
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isSubmitting) {
-      console.log("<====Submit blocked: already submitting====>");
+
+    // Валидация обязательных полей
+    if (!form.title) {
+      toast.error("Title is required");
       return;
     }
-    setIsSubmitting(true);
-    const submitId = Date.now();
-    console.log(`<====handleSubmit called====> ID: ${submitId}`);
-    try {
-      if (!form.title) {
-        toast.error("Title is required");
-        return;
-      }
-      if (!form.event_date) {
-        toast.error("Date is required");
-        return;
-      }
-      if (!form.location) {
-        toast.error("Location is required");
-        return;
-      }
+    if (!form.event_date) {
+      toast.error("Event date is required");
+      return;
+    }
+    if (!form.event_time) {
+      toast.error("Event time is required");
+      return;
+    }
+    if (!form.location) {
+      toast.error("Location is required");
+      return;
+    }
+    if (!form.category) {
+      toast.error("Category is required");
+      return;
+    }
 
+    try {
       const formData = new FormData();
-      formData.append("id", form.id.toString());
+      formData.append("id", String(event.id));
       formData.append("title", form.title);
-      formData.append("event_date", form.event_date);
+      const eventDateTime = `${form.event_date}T${form.event_time}:00`;
+      formData.append("event_date", eventDateTime);
       formData.append("description", form.description);
       formData.append("location", form.location);
-      formData.append("address", form.address);
       formData.append("category", form.category);
       if (imageFile) {
         formData.append("image", imageFile);
       }
-
-      console.log(`<====FormData contents ID: ${submitId}====>`);
-      for (const [key, value] of formData.entries()) {
-        console.log(`${key}:`, value);
-      }
-
       await onSave(formData);
-      console.log(`<====onSave completed ID: ${submitId}====>`);
       onClose();
     } catch (err: any) {
-      console.error(`<====Submit error ID: ${submitId}====>`, err);
-      toast.error(err.message || "Error updating event");
-    } finally {
-      setIsSubmitting(false);
+      if (err.message.includes("Token expired")) {
+        toast.error(
+          "Your authorization has expired. Please update your login credentials"
+        );
+      } else if (err.message.includes("Missing required fields")) {
+        toast.error("Please fill in all required fields");
+      } else {
+        toast.error("Error updating event");
+      }
     }
   };
 
@@ -204,17 +248,15 @@ export default function EditEventModal({
       <div className="bg-white p-6 rounded-lg max-w-md w-full min-w-[70vw] m-auto my-6">
         <h2 className="text-xl font-semibold mb-4">Edit Event</h2>
         <form onSubmit={handleSubmit} className="space-y-3">
-          <div>
-            <Input
-              id="title"
-              typeInput="text"
-              data="Title:"
-              value={form.title}
-              onChange={handleChange}
-              name="title"
-              required
-            />
-          </div>
+          <Input
+            id="title"
+            typeInput="text"
+            data="Title:"
+            value={form.title}
+            onChange={handleChange}
+            name="title"
+            required
+          />
           <div>
             <label className="block mb-1">Category:</label>
             <Select
@@ -229,7 +271,17 @@ export default function EditEventModal({
             </label>
             <Calendar
               handleDateChange={handleDateChange}
-              initialDate={new Date(event.event_date)}
+              selectedDate={form.event_date ? new Date(form.event_date) : null}
+            />
+          </div>
+          <div>
+            <label className="block mb-1">
+              Time: {form.event_time && <span>{form.event_time}</span>}
+            </label>
+            <ClockUhr
+              data="Time:"
+              value={form.event_time}
+              onChange={handleTimeChange}
             />
           </div>
           <div>
@@ -272,27 +324,24 @@ export default function EditEventModal({
               Location (enter address or pick on map):
             </label>
             <p className="text-sm text-gray-600 mb-1">
-              Enter an address (e.g., "Brandenburg Gate, Berlin") and click
+              Enter an address (e.g. "Brandenburg Gate, Berlin") and click
               "Search address", or pick a location on the map below.
             </p>
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center">
               <input
                 type="text"
                 name="address"
                 value={form.address}
                 onChange={handleChange}
-                placeholder="e.g., Brandenburg Gate, Berlin"
+                placeholder="e.g. Brandenburg Gate, Berlin"
                 className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                disabled={isSubmitting}
               />
               <button
                 type="button"
                 onClick={handleAddressSearch}
-                disabled={isSubmitting || isSearching}
-                className={`bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 flex items-center ${
-                  isSubmitting || isSearching
-                    ? "opacity-50 cursor-not-allowed"
-                    : ""
+                disabled={isSearching}
+                className={`ml-2 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 flex items-center ${
+                  isSearching ? "opacity-50 cursor-not-allowed" : ""
                 }`}
               >
                 {isSearching ? (
@@ -317,16 +366,6 @@ export default function EditEventModal({
                 ) : null}
                 Search address
               </button>
-              {(form.address || form.location !== event.location) && (
-                <button
-                  type="button"
-                  onClick={handleResetLocation}
-                  className="text-sm text-red-500 hover:text-red-700"
-                  disabled={isSubmitting}
-                >
-                  Reset Location
-                </button>
-              )}
             </div>
             <input
               type="text"
@@ -335,28 +374,23 @@ export default function EditEventModal({
               readOnly
               placeholder="Coordinates will appear here (e.g. POINT(13.37 52.51))"
               className="w-full p-2 border border-gray-300 rounded mt-2 bg-gray-100 cursor-not-allowed"
-              disabled={isSubmitting}
             />
             <LocationPickerMap
               onLocationSelect={handleLocationSelect}
               initialLocation={parsedLocation}
             />
           </div>
-          <div className="flex justify-end mt-4 space-x-2">
+          <div className="flex justify-end mt-4">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
-              disabled={isSubmitting}
+              className="mr-2 px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className={`px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 ${
-                isSubmitting ? "opacity-50 cursor-not-allowed" : ""
-              }`}
-              disabled={isSubmitting}
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
             >
               Save Event
             </button>

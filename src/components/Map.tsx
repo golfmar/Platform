@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useState, useEffect } from "react";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
@@ -24,6 +24,7 @@ interface Event {
 
 interface MapProps {
   events: Event[];
+  onMapClick?: (lat: number, lng: number) => void; // Добавляем проп для клика
 }
 
 // Парсинг строки POINT(x y) в координаты [lat, lng]
@@ -66,8 +67,45 @@ function AutoZoom({ events }: MapProps) {
   return null;
 }
 
-export default function Map({ events }: MapProps) {
+// Компонент для обработки клика на карте
+function MapClickHandler({
+  onMapClick,
+}: {
+  onMapClick?: (lat: number, lng: number) => void;
+}) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!onMapClick) return;
+
+    const handleClick = (e: L.LeafletMouseEvent) => {
+      const { lat, lng } = e.latlng;
+      onMapClick(lat, lng);
+    };
+
+    map.on("click", handleClick);
+    return () => {
+      map.off("click", handleClick);
+    };
+  }, [map, onMapClick]);
+
+  return null;
+}
+
+export default function Map({ events, onMapClick }: MapProps) {
+  const [selectedPoint, setSelectedPoint] = useState<[number, number] | null>(
+    null
+  );
+
   console.log("Events for map:", events);
+
+  const handleMapClick = (lat: number, lng: number) => {
+    setSelectedPoint([lat, lng]);
+    if (onMapClick) {
+      onMapClick(lat, lng);
+    }
+  };
+
   return (
     <MapContainer
       center={[48.8566, 2.3522]}
@@ -79,6 +117,7 @@ export default function Map({ events }: MapProps) {
         attribution='© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
       />
       <AutoZoom events={events} />
+      <MapClickHandler onMapClick={handleMapClick} />
       {events.map((event) => {
         const coords = parsePoint(event.location);
         if (!coords) return null;
@@ -92,6 +131,27 @@ export default function Map({ events }: MapProps) {
           </Marker>
         );
       })}
+      {selectedPoint && (
+        <Marker
+          position={selectedPoint}
+          icon={
+            new L.Icon({
+              iconUrl:
+                "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+              iconRetinaUrl:
+                "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+              shadowUrl:
+                "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+              iconSize: [25, 41],
+              iconAnchor: [12, 41],
+              popupAnchor: [1, -34],
+              shadowSize: [41, 41],
+            })
+          }
+        >
+          <Popup>Selected location</Popup>
+        </Marker>
+      )}
     </MapContainer>
   );
 }

@@ -1,9 +1,6 @@
 @import '@/scss/common/colors';
 
 .fildset-checkbox {
-  .form-check {
-    position: relative;
-  }
 
   input[type="checkbox"]:checked,
   input[type="checkbox"]:not(:checked) {
@@ -17,7 +14,8 @@
   input[type="checkbox"]:not(:checked)+label {
     display: inline-block;
     position: relative;
-    padding: 0 0 0 30px;
+    padding: 5px 0 5px 30px;
+    line-height: 1;
     cursor: pointer;
     transition: all .3s;
 
@@ -31,7 +29,8 @@
     content: "";
     position: absolute;
     left: 0px;
-    top: 0px;
+    top: 50%;
+    transform: translateY(-50%);
     background-color: transparent;
     transition: all .3s;
   }
@@ -57,9 +56,9 @@
     width: 10px;
     height: 10px;
     border-radius: 100%;
-    top: 0;
+    top: 50%;
     left: 0;
-    transform: translate(5px, 5px);
+    transform: translate(5px, -50%);
     border: solid 2px $success;
     background-color: $success;
     transition: all .3s;

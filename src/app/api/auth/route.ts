@@ -30,7 +30,7 @@ export async function POST(request: Request) {
       });
       console.log("<====user created====>", user);
       const token = jwt.sign({ userId: user.id }, JWT_SECRET, {
-        expiresIn: "1h",
+        expiresIn: "6h",
       });
       return NextResponse.json({
         token,
@@ -53,7 +53,7 @@ export async function POST(request: Request) {
         );
       }
       const token = jwt.sign({ userId: user.id }, JWT_SECRET, {
-        expiresIn: "1h",
+        expiresIn: "6h",
       });
       return NextResponse.json({
         token,

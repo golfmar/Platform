@@ -14,12 +14,12 @@ const LocationPickerMap = dynamic(() => import("./LocationPickerMap"), {
 });
 
 const CATEGORIES = [
-  "Concert",
-  "Exhibition",
-  "Sports",
-  "Workshop",
-  "Conference",
-  "Other",
+  { name: "Concert", value: "Concert" },
+  { name: "Exhibition", value: "Exhibition" },
+  { name: "Sports", value: "Sports" },
+  { name: "Workshop", value: "Workshop" },
+  { name: "Conference", value: "Conference" },
+  { name: "Other", value: "Other" },
 ];
 
 interface CreateEventModalProps {
@@ -34,7 +34,7 @@ export default function CreateEventModal({
   const [form, setForm] = useState({
     title: "",
     event_date: "",
-    event_time: "", // Добавляем поле для времени
+    event_time: "",
     description: "",
     location: "",
     address: "",
@@ -43,6 +43,24 @@ export default function CreateEventModal({
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isSearching, setIsSearching] = useState(false);
+
+  const validateAndSetDate = (date: Date) => {
+    const now = new Date();
+    const selected = new Date(date);
+    selected.setHours(0, 0, 0, 0);
+    const today = new Date(now);
+    today.setHours(0, 0, 0, 0);
+
+    if (selected < today) {
+      toast.error("Date must be in the future!");
+      const newDate = new Date(today);
+      return newDate;
+    } else {
+      if (date) {
+        return date;
+      }
+    }
+  };
 
   const handleChange = (
     e: React.ChangeEvent<
@@ -53,8 +71,9 @@ export default function CreateEventModal({
   };
 
   const handleDateChange = (date: Date) => {
+    const validateDate = validateAndSetDate(date);
     const tzDate = new Date(
-      date.toLocaleString("en-US", { timeZone: "Europe/Berlin" })
+      validateDate.toLocaleString("en-US", { timeZone: "Europe/Berlin" })
     );
 
     const year = tzDate.getFullYear();
@@ -62,9 +81,6 @@ export default function CreateEventModal({
     const day = String(tzDate.getDate()).padStart(2, "0");
 
     const formattedDate = `${year}-${month}-${day}`;
-
-    console.log("<====Local Date====>", tzDate);
-    console.log("<====Formatted Date====>", formattedDate);
 
     setForm({ ...form, event_date: formattedDate });
   };
@@ -118,6 +134,16 @@ export default function CreateEventModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (
+      form.title === "" ||
+      form.event_date === "" ||
+      form.event_time === "" ||
+      form.location === "" ||
+      form.category === ""
+    ) {
+      toast.error("Please fill in all required fields");
+      return;
+    }
     try {
       const formData = new FormData();
       formData.append("title", form.title);

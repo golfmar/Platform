@@ -1,22 +1,53 @@
-// import { Pool } from "@neondatabase/serverless";
+import { Pool } from "@neondatabase/serverless";
+import { NextResponse } from "next/server";
 
-// export async function GET() {
-//   const pool = new Pool({
-//     connectionString: process.env.DATABASE_URL,
-//     ssl: { rejectUnauthorized: false }, // Важно для Neon!
-//   });
+export async function GET(request: Request) {
+  const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: { rejectUnauthorized: false },
+  });
 
-//   try {
-//     const { rows } = await pool.query("SELECT * FROM events LIMIT 5");
-//     console.log("Результат запроса:", rows); // Логируем данные
-//     return Response.json(rows);
-//   } catch (error) {
-//     console.error("Ошибка запроса:", error);
-//     return Response.json({ error: error.message }, { status: 500 });
-//   } finally {
-//     await pool.end();
-//   }
-// }
+  try {
+    const { searchParams } = new URL(request.url);
+
+    // Упрощаем запрос - убираем все фильтры для теста
+    const query = `
+      SELECT 
+        e.id,
+        e.title,
+        e.event_date as "eventDate",
+        u.email as "organizerEmail",
+        ST_X(e.location::geometry) as lng,
+        ST_Y(e.location::geometry) as lat
+      FROM events e
+      JOIN users u ON e.organizer_id = u.id
+      ORDER BY e.event_date DESC
+      LIMIT 10
+    `;
+
+    console.log("Executing query:", query);
+    const { rows } = await pool.query(query);
+    console.log("Query results:", rows);
+
+    return NextResponse.json({
+      success: true,
+      data: rows,
+      message: `${rows.length} событий найдено`,
+    });
+  } catch (error) {
+    console.error("Database error:", error);
+    return NextResponse.json(
+      {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+        details: "Ошибка при выполнении запроса",
+      },
+      { status: 500 }
+    );
+  } finally {
+    await pool.end();
+  }
+}
 
 // ========================================
 
@@ -203,495 +234,495 @@
 //   }
 // }
 
-import { Pool } from "@neondatabase/serverless";
-import { NextResponse } from "next/server";
-import jwt from "jsonwebtoken";
+// import { Pool } from "@neondatabase/serverless";
+// import { NextResponse } from "next/server";
+// import jwt from "jsonwebtoken";
 
-const JWT_SECRET = process.env.JWT_SECRET || "fallback-secret";
+// const JWT_SECRET = process.env.JWT_SECRET || "fallback-secret";
 
-export async function GET(request: Request) {
-  const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false },
-  });
+// export async function GET(request: Request) {
+//   const pool = new Pool({
+//     connectionString: process.env.DATABASE_URL,
+//     ssl: { rejectUnauthorized: false },
+//   });
 
-  try {
-    const { searchParams } = new URL(request.url);
-    const id = searchParams.get("id");
-    const lat = parseFloat(searchParams.get("lat") || "NaN");
-    const lng = parseFloat(searchParams.get("lng") || "NaN");
-    const radius = parseFloat(searchParams.get("radius") || "10000");
-    const title = searchParams.get("title") || "";
-    const startDate = searchParams.get("startDate") || "";
-    const endDate = searchParams.get("endDate") || "";
-    const myEvents = searchParams.get("myEvents") === "true";
-    const category = searchParams.get("category") || "";
-    const sortOrder = searchParams.get("sortOrder") || "date-asc";
-    const limit = parseInt(searchParams.get("limit") || "2");
-    const offset = parseInt(searchParams.get("offset") || "0");
-    const authHeader = request.headers.get("Authorization");
+//   try {
+//     const { searchParams } = new URL(request.url);
+//     const id = searchParams.get("id");
+//     const lat = parseFloat(searchParams.get("lat") || "NaN");
+//     const lng = parseFloat(searchParams.get("lng") || "NaN");
+//     const radius = parseFloat(searchParams.get("radius") || "10000");
+//     const title = searchParams.get("title") || "";
+//     const startDate = searchParams.get("startDate") || "";
+//     const endDate = searchParams.get("endDate") || "";
+//     const myEvents = searchParams.get("myEvents") === "true";
+//     const category = searchParams.get("category") || "";
+//     const sortOrder = searchParams.get("sortOrder") || "date-asc";
+//     const limit = parseInt(searchParams.get("limit") || "2");
+//     const offset = parseInt(searchParams.get("offset") || "0");
+//     const authHeader = request.headers.get("Authorization");
 
-    let userId: number | null = null;
-    if (myEvents && authHeader && authHeader.startsWith("Bearer ")) {
-      const token = authHeader.replace("Bearer ", "");
-      const decoded = jwt.verify(token, JWT_SECRET) as { userId: number };
-      userId = decoded.userId;
-    }
+//     let userId: number | null = null;
+//     if (myEvents && authHeader && authHeader.startsWith("Bearer ")) {
+//       const token = authHeader.replace("Bearer ", "");
+//       const decoded = jwt.verify(token, JWT_SECRET) as { userId: number };
+//       userId = decoded.userId;
+//     }
 
-    // Запрос одного события по ID
-    if (id) {
-      const query = `
-        SELECT 
-          e.id, e.title, e.event_date, e.description, 
-          ST_AsText(e.location) as location, 
-          u.email as organizer_email, e.category, e.image_url
-        FROM events e
-        JOIN users u ON e.organizer_id = u.id
-        WHERE e.id = $1
-      `;
-      const { rows } = await pool.query(query, [parseInt(id)]);
+//     // Запрос одного события по ID
+//     if (id) {
+//       const query = `
+//         SELECT
+//           e.id, e.title, e.event_date, e.description,
+//           ST_AsText(e.location) as location,
+//           u.email as organizer_email, e.category, e.image_url
+//         FROM events e
+//         JOIN users u ON e.organizer_id = u.id
+//         WHERE e.id = $1
+//       `;
+//       const { rows } = await pool.query(query, [parseInt(id)]);
 
-      if (!rows || rows.length === 0) {
-        return NextResponse.json({ error: "Event not found" }, { status: 404 });
-      }
+//       if (!rows || rows.length === 0) {
+//         return NextResponse.json({ error: "Event not found" }, { status: 404 });
+//       }
 
-      const event = {
-        ...rows[0],
-        event_date: new Date(rows[0].event_date).toISOString(),
-      };
-      return NextResponse.json(event);
-    }
+//       const event = {
+//         ...rows[0],
+//         event_date: new Date(rows[0].event_date).toISOString(),
+//       };
+//       return NextResponse.json(event);
+//     }
 
-    // Построение основного запроса
-    let whereParts: string[] = ["1=1"];
-    const queryParams: any[] = [];
-    let paramIndex = 1;
+//     // Построение основного запроса
+//     let whereParts: string[] = ["1=1"];
+//     const queryParams: any[] = [];
+//     let paramIndex = 1;
 
-    // Гео-фильтр
-    if (lat && lng && !isNaN(lat) && !isNaN(lng)) {
-      whereParts.push(`
-        ST_DWithin(
-          e.location,
-          ST_SetSRID(ST_MakePoint($${paramIndex}, $${
-        paramIndex + 1
-      }), 4326)::geography,
-          $${paramIndex + 2}
-        )
-      `);
-      queryParams.push(lng, lat, radius);
-      paramIndex += 3;
-    }
+//     // Гео-фильтр
+//     if (lat && lng && !isNaN(lat) && !isNaN(lng)) {
+//       whereParts.push(`
+//         ST_DWithin(
+//           e.location,
+//           ST_SetSRID(ST_MakePoint($${paramIndex}, $${
+//         paramIndex + 1
+//       }), 4326)::geography,
+//           $${paramIndex + 2}
+//         )
+//       `);
+//       queryParams.push(lng, lat, radius);
+//       paramIndex += 3;
+//     }
 
-    // Текстовый фильтр
-    if (title) {
-      whereParts.push(`e.title ILIKE $${paramIndex}`);
-      queryParams.push(`%${title}%`);
-      paramIndex++;
-    }
+//     // Текстовый фильтр
+//     if (title) {
+//       whereParts.push(`e.title ILIKE $${paramIndex}`);
+//       queryParams.push(`%${title}%`);
+//       paramIndex++;
+//     }
 
-    // Фильтр по дате начала
-    if (startDate) {
-      whereParts.push(`e.event_date >= $${paramIndex}`);
-      queryParams.push(new Date(startDate));
-      paramIndex++;
-    }
+//     // Фильтр по дате начала
+//     if (startDate) {
+//       whereParts.push(`e.event_date >= $${paramIndex}`);
+//       queryParams.push(new Date(startDate));
+//       paramIndex++;
+//     }
 
-    // Фильтр по дате окончания
-    if (endDate) {
-      whereParts.push(`e.event_date <= $${paramIndex}`);
-      queryParams.push(new Date(endDate));
-      paramIndex++;
-    }
+//     // Фильтр по дате окончания
+//     if (endDate) {
+//       whereParts.push(`e.event_date <= $${paramIndex}`);
+//       queryParams.push(new Date(endDate));
+//       paramIndex++;
+//     }
 
-    // Фильтр по категории
-    if (category) {
-      whereParts.push(`e.category = $${paramIndex}`);
-      queryParams.push(category);
-      paramIndex++;
-    }
+//     // Фильтр по категории
+//     if (category) {
+//       whereParts.push(`e.category = $${paramIndex}`);
+//       queryParams.push(category);
+//       paramIndex++;
+//     }
 
-    // Фильтр "мои события"
-    if (myEvents && userId) {
-      whereParts.push(`e.organizer_id = $${paramIndex}`);
-      queryParams.push(userId);
-      paramIndex++;
-    }
+//     // Фильтр "мои события"
+//     if (myEvents && userId) {
+//       whereParts.push(`e.organizer_id = $${paramIndex}`);
+//       queryParams.push(userId);
+//       paramIndex++;
+//     }
 
-    const whereClause =
-      whereParts.length > 0 ? `WHERE ${whereParts.join(" AND ")}` : "";
+//     const whereClause =
+//       whereParts.length > 0 ? `WHERE ${whereParts.join(" AND ")}` : "";
 
-    // Подсчет общего количества
-    const countQuery = `
-      SELECT COUNT(*) as count
-      FROM events e
-      JOIN users u ON e.organizer_id = u.id
-      ${whereClause}
-    `;
-    const countResult = await pool.query(countQuery, queryParams);
-    const totalCount = Number(countResult.rows[0]?.count || 0);
+//     // Подсчет общего количества
+//     const countQuery = `
+//       SELECT COUNT(*) as count
+//       FROM events e
+//       JOIN users u ON e.organizer_id = u.id
+//       ${whereClause}
+//     `;
+//     const countResult = await pool.query(countQuery, queryParams);
+//     const totalCount = Number(countResult.rows[0]?.count || 0);
 
-    // Определение сортировки
-    let orderByClause = "ORDER BY e.event_date ASC";
-    if (sortOrder === "date-desc") {
-      orderByClause = "ORDER BY e.event_date DESC";
-    } else if (
-      sortOrder === "distance-asc" &&
-      lat &&
-      lng &&
-      !isNaN(lat) &&
-      !isNaN(lng)
-    ) {
-      orderByClause = `
-        ORDER BY ST_Distance(
-          e.location,
-          ST_SetSRID(ST_MakePoint($${paramIndex}, $${
-        paramIndex + 1
-      }), 4326)::geography
-        ) ASC
-      `;
-      queryParams.push(lng, lat);
-      paramIndex += 2;
-    }
+//     // Определение сортировки
+//     let orderByClause = "ORDER BY e.event_date ASC";
+//     if (sortOrder === "date-desc") {
+//       orderByClause = "ORDER BY e.event_date DESC";
+//     } else if (
+//       sortOrder === "distance-asc" &&
+//       lat &&
+//       lng &&
+//       !isNaN(lat) &&
+//       !isNaN(lng)
+//     ) {
+//       orderByClause = `
+//         ORDER BY ST_Distance(
+//           e.location,
+//           ST_SetSRID(ST_MakePoint($${paramIndex}, $${
+//         paramIndex + 1
+//       }), 4326)::geography
+//         ) ASC
+//       `;
+//       queryParams.push(lng, lat);
+//       paramIndex += 2;
+//     }
 
-    // Основной запрос данных
-    const dataQuery = `
-      SELECT 
-        e.id, e.title, e.event_date, e.description,
-        ST_AsText(e.location) as location,
-        u.email as organizer_email, e.category, e.image_url
-      FROM events e
-      JOIN users u ON e.organizer_id = u.id
-      ${whereClause}
-      ${orderByClause}
-      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
-    `;
-    queryParams.push(limit, offset);
+//     // Основной запрос данных
+//     const dataQuery = `
+//       SELECT
+//         e.id, e.title, e.event_date, e.description,
+//         ST_AsText(e.location) as location,
+//         u.email as organizer_email, e.category, e.image_url
+//       FROM events e
+//       JOIN users u ON e.organizer_id = u.id
+//       ${whereClause}
+//       ${orderByClause}
+//       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+//     `;
+//     queryParams.push(limit, offset);
 
-    const { rows } = await pool.query(dataQuery, queryParams);
+//     const { rows } = await pool.query(dataQuery, queryParams);
 
-    // Форматирование результата
-    const formattedEvents = rows.map((event: any) => ({
-      ...event,
-      event_date: new Date(event.event_date).toISOString(),
-    }));
+//     // Форматирование результата
+//     const formattedEvents = rows.map((event: any) => ({
+//       ...event,
+//       event_date: new Date(event.event_date).toISOString(),
+//     }));
 
-    return NextResponse.json({
-      events: formattedEvents,
-      totalCount,
-    });
-  } catch (error: any) {
-    console.error("Error in GET /api/events:", error);
-    if (error.name === "JsonWebTokenError") {
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
-    }
-    return NextResponse.json(
-      { error: error.message || "Failed to fetch events" },
-      { status: 500 }
-    );
-  } finally {
-    await pool.end();
-  }
-}
+//     return NextResponse.json({
+//       events: formattedEvents,
+//       totalCount,
+//     });
+//   } catch (error: any) {
+//     console.error("Error in GET /api/events:", error);
+//     if (error.name === "JsonWebTokenError") {
+//       return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+//     }
+//     return NextResponse.json(
+//       { error: error.message || "Failed to fetch events" },
+//       { status: 500 }
+//     );
+//   } finally {
+//     await pool.end();
+//   }
+// }
 
-export async function POST(request: Request) {
-  try {
-    const authHeader = request.headers.get("Authorization");
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+// export async function POST(request: Request) {
+//   try {
+//     const authHeader = request.headers.get("Authorization");
+//     if (!authHeader || !authHeader.startsWith("Bearer ")) {
+//       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+//     }
 
-    const token = authHeader.replace("Bearer ", "");
-    const decoded = jwt.verify(token, JWT_SECRET) as { userId: number };
-    console.log("<====decoded token====>", decoded);
+//     const token = authHeader.replace("Bearer ", "");
+//     const decoded = jwt.verify(token, JWT_SECRET) as { userId: number };
+//     console.log("<====decoded token====>", decoded);
 
-    // Обрабатываем multipart/form-data
-    const formData = await request.formData();
-    const title = formData.get("title") as string;
-    const event_date = formData.get("event_date") as string;
-    const description = formData.get("description") as string | null;
-    const location = formData.get("location") as string;
-    const category = formData.get("category") as string | null;
-    const image = formData.get("image") as File | null;
+//     // Обрабатываем multipart/form-data
+//     const formData = await request.formData();
+//     const title = formData.get("title") as string;
+//     const event_date = formData.get("event_date") as string;
+//     const description = formData.get("description") as string | null;
+//     const location = formData.get("location") as string;
+//     const category = formData.get("category") as string | null;
+//     const image = formData.get("image") as File | null;
 
-    if (!title || !event_date || !location) {
-      console.log("<====missing fields====>", { title, event_date, location });
-      return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 }
-      );
-    }
+//     if (!title || !event_date || !location) {
+//       console.log("<====missing fields====>", { title, event_date, location });
+//       return NextResponse.json(
+//         { error: "Missing required fields" },
+//         { status: 400 }
+//       );
+//     }
 
-    // Нормализация даты и времени в UTC
-    const parsedDate = new Date(event_date);
-    if (isNaN(parsedDate.getTime())) {
-      console.log("<====invalid date====>", event_date);
-      return NextResponse.json(
-        { error: "Invalid date format" },
-        { status: 400 }
-      );
-    }
-    const normalizedDate = new Date(
-      Date.UTC(
-        parsedDate.getUTCFullYear(),
-        parsedDate.getUTCMonth(),
-        parsedDate.getUTCDate(),
-        parsedDate.getUTCHours(),
-        parsedDate.getUTCMinutes(),
-        0
-      )
-    );
+//     // Нормализация даты и времени в UTC
+//     const parsedDate = new Date(event_date);
+//     if (isNaN(parsedDate.getTime())) {
+//       console.log("<====invalid date====>", event_date);
+//       return NextResponse.json(
+//         { error: "Invalid date format" },
+//         { status: 400 }
+//       );
+//     }
+//     const normalizedDate = new Date(
+//       Date.UTC(
+//         parsedDate.getUTCFullYear(),
+//         parsedDate.getUTCMonth(),
+//         parsedDate.getUTCDate(),
+//         parsedDate.getUTCHours(),
+//         parsedDate.getUTCMinutes(),
+//         0
+//       )
+//     );
 
-    let image_url: string | null = null;
-    if (image) {
-      const buffer = Buffer.from(await image.arrayBuffer());
-      const base64Image = buffer.toString("base64");
-      const result = await cloudinary.uploader.upload(
-        `data:image/jpeg;base64,${base64Image}`,
-        {
-          upload_preset: process.env.CLOUDINARY_UPLOAD_PRESET,
-          folder: "events",
-        }
-      );
-      image_url = result.secure_url;
-      console.log("<====cloudinary upload====>", result);
-    }
+//     let image_url: string | null = null;
+//     if (image) {
+//       const buffer = Buffer.from(await image.arrayBuffer());
+//       const base64Image = buffer.toString("base64");
+//       const result = await cloudinary.uploader.upload(
+//         `data:image/jpeg;base64,${base64Image}`,
+//         {
+//           upload_preset: process.env.CLOUDINARY_UPLOAD_PRESET,
+//           folder: "events",
+//         }
+//       );
+//       image_url = result.secure_url;
+//       console.log("<====cloudinary upload====>", result);
+//     }
 
-    console.log("<====formData====>", {
-      title,
-      event_date: normalizedDate.toISOString(),
-      description,
-      location,
-      category,
-      image: image ? image.name : null,
-    });
+//     console.log("<====formData====>", {
+//       title,
+//       event_date: normalizedDate.toISOString(),
+//       description,
+//       location,
+//       category,
+//       image: image ? image.name : null,
+//     });
 
-    const event = await prisma.$queryRaw`
-      INSERT INTO events (title, event_date, description, location, organizer_id, created_at, category, image_url)
-      VALUES (${title}, ${normalizedDate}, ${description}, ST_GeomFromText(${location}), ${
-      decoded.userId
-    }, NOW(), ${category || "Other"}, ${image_url})
-      RETURNING id, title, event_date, description, ST_AsText(location) as location, (
-        SELECT email FROM users WHERE id = ${decoded.userId}
-      ) as organizer_email, category, image_url
-    `;
-    console.log("<====created event====>", event);
-    const formattedEvent = {
-      ...event[0],
-      event_date: new Date(event[0].event_date).toISOString(),
-    };
-    return NextResponse.json(formattedEvent, { status: 201 });
-  } catch (error: any) {
-    console.error("<====error====>", error);
-    if (error.name === "JsonWebTokenError") {
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
-    }
-    if (error.name === "TokenExpiredError") {
-      return NextResponse.json(
-        { error: "Token expired====>" + error.message },
-        { status: 401 }
-      );
-    }
-    return NextResponse.json(
-      { error: "Failed to create event" },
-      { status: 500 }
-    );
-  } finally {
-    await prisma.$disconnect();
-  }
-}
+//     const event = await prisma.$queryRaw`
+//       INSERT INTO events (title, event_date, description, location, organizer_id, created_at, category, image_url)
+//       VALUES (${title}, ${normalizedDate}, ${description}, ST_GeomFromText(${location}), ${
+//       decoded.userId
+//     }, NOW(), ${category || "Other"}, ${image_url})
+//       RETURNING id, title, event_date, description, ST_AsText(location) as location, (
+//         SELECT email FROM users WHERE id = ${decoded.userId}
+//       ) as organizer_email, category, image_url
+//     `;
+//     console.log("<====created event====>", event);
+//     const formattedEvent = {
+//       ...event[0],
+//       event_date: new Date(event[0].event_date).toISOString(),
+//     };
+//     return NextResponse.json(formattedEvent, { status: 201 });
+//   } catch (error: any) {
+//     console.error("<====error====>", error);
+//     if (error.name === "JsonWebTokenError") {
+//       return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+//     }
+//     if (error.name === "TokenExpiredError") {
+//       return NextResponse.json(
+//         { error: "Token expired====>" + error.message },
+//         { status: 401 }
+//       );
+//     }
+//     return NextResponse.json(
+//       { error: "Failed to create event" },
+//       { status: 500 }
+//     );
+//   } finally {
+//     await prisma.$disconnect();
+//   }
+// }
 
-export async function PUT(request: Request) {
-  try {
-    const authHeader = request.headers.get("Authorization");
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+// export async function PUT(request: Request) {
+//   try {
+//     const authHeader = request.headers.get("Authorization");
+//     if (!authHeader || !authHeader.startsWith("Bearer ")) {
+//       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+//     }
 
-    const token = authHeader.replace("Bearer ", "");
-    const decoded = jwt.verify(token, JWT_SECRET) as { userId: number };
-    console.log("<====decoded token====>", decoded);
+//     const token = authHeader.replace("Bearer ", "");
+//     const decoded = jwt.verify(token, JWT_SECRET) as { userId: number };
+//     console.log("<====decoded token====>", decoded);
 
-    const formData = await request.formData();
-    const id = parseInt(formData.get("id") as string);
-    const title = formData.get("title") as string;
-    const event_date = formData.get("event_date") as string;
-    const description = formData.get("description") as string | null;
-    const location = formData.get("location") as string;
-    const category = formData.get("category") as string | null;
-    const image = formData.get("image") as File | null;
+//     const formData = await request.formData();
+//     const id = parseInt(formData.get("id") as string);
+//     const title = formData.get("title") as string;
+//     const event_date = formData.get("event_date") as string;
+//     const description = formData.get("description") as string | null;
+//     const location = formData.get("location") as string;
+//     const category = formData.get("category") as string | null;
+//     const image = formData.get("image") as File | null;
 
-    if (!id || !title || !event_date || !location) {
-      console.log("<====missing fields====>", {
-        id,
-        title,
-        event_date,
-        location,
-      });
-      return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 }
-      );
-    }
+//     if (!id || !title || !event_date || !location) {
+//       console.log("<====missing fields====>", {
+//         id,
+//         title,
+//         event_date,
+//         location,
+//       });
+//       return NextResponse.json(
+//         { error: "Missing required fields" },
+//         { status: 400 }
+//       );
+//     }
 
-    // Нормализация даты и времени в UTC
-    const parsedDate = new Date(event_date);
-    if (isNaN(parsedDate.getTime())) {
-      console.log("<====invalid date====>", event_date);
-      return NextResponse.json(
-        { error: "Invalid date format" },
-        { status: 400 }
-      );
-    }
-    const normalizedDate = new Date(
-      Date.UTC(
-        parsedDate.getUTCFullYear(),
-        parsedDate.getUTCMonth(),
-        parsedDate.getUTCDate(),
-        parsedDate.getUTCHours(),
-        parsedDate.getUTCMinutes(),
-        0
-      )
-    );
+//     // Нормализация даты и времени в UTC
+//     const parsedDate = new Date(event_date);
+//     if (isNaN(parsedDate.getTime())) {
+//       console.log("<====invalid date====>", event_date);
+//       return NextResponse.json(
+//         { error: "Invalid date format" },
+//         { status: 400 }
+//       );
+//     }
+//     const normalizedDate = new Date(
+//       Date.UTC(
+//         parsedDate.getUTCFullYear(),
+//         parsedDate.getUTCMonth(),
+//         parsedDate.getUTCDate(),
+//         parsedDate.getUTCHours(),
+//         parsedDate.getUTCMinutes(),
+//         0
+//       )
+//     );
 
-    let image_url: string | null = null;
-    if (image) {
-      const buffer = Buffer.from(await image.arrayBuffer());
-      const base64Image = buffer.toString("base64");
-      const result = await cloudinary.uploader.upload(
-        `data:image/jpeg;base64,${base64Image}`,
-        {
-          upload_preset: process.env.CLOUDINARY_UPLOAD_PRESET,
-          folder: "events",
-        }
-      );
-      image_url = result.secure_url;
-      console.log("<====cloudinary upload====>", result);
-    }
+//     let image_url: string | null = null;
+//     if (image) {
+//       const buffer = Buffer.from(await image.arrayBuffer());
+//       const base64Image = buffer.toString("base64");
+//       const result = await cloudinary.uploader.upload(
+//         `data:image/jpeg;base64,${base64Image}`,
+//         {
+//           upload_preset: process.env.CLOUDINARY_UPLOAD_PRESET,
+//           folder: "events",
+//         }
+//       );
+//       image_url = result.secure_url;
+//       console.log("<====cloudinary upload====>", result);
+//     }
 
-    const event = await prisma.$queryRaw`
-      UPDATE events
-      SET
-        title = ${title},
-        event_date = ${normalizedDate},
-        description = ${description},
-        location = ST_GeomFromText(${location}),
-        category = ${category || "Other"},
-        image_url = COALESCE(${image_url}, image_url)
-      WHERE id = ${id} AND organizer_id = ${decoded.userId}
-      RETURNING id, title, event_date, description, ST_AsText(location) as location, (
-        SELECT email FROM users WHERE id = ${decoded.userId}
-      ) as organizer_email, category, image_url
-    `;
-    console.log("<====updated event====>", event);
-    if (!event || event.length === 0) {
-      return NextResponse.json(
-        { error: "Event not found or unauthorized" },
-        { status: 404 }
-      );
-    }
-    const formattedEvent = {
-      ...event[0],
-      event_date: new Date(event[0].event_date).toISOString(),
-    };
-    return NextResponse.json(formattedEvent);
-  } catch (error: any) {
-    console.error("<====error====>", error);
-    if (error.name === "JsonWebTokenError") {
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
-    }
-    if (error.name === "TokenExpiredError") {
-      return NextResponse.json(
-        { error: "Token expired====>" + error.message },
-        { status: 401 }
-      );
-    }
-    return NextResponse.json(
-      { error: "Failed to update event" },
-      { status: 500 }
-    );
-  } finally {
-    await prisma.$disconnect();
-  }
-}
+//     const event = await prisma.$queryRaw`
+//       UPDATE events
+//       SET
+//         title = ${title},
+//         event_date = ${normalizedDate},
+//         description = ${description},
+//         location = ST_GeomFromText(${location}),
+//         category = ${category || "Other"},
+//         image_url = COALESCE(${image_url}, image_url)
+//       WHERE id = ${id} AND organizer_id = ${decoded.userId}
+//       RETURNING id, title, event_date, description, ST_AsText(location) as location, (
+//         SELECT email FROM users WHERE id = ${decoded.userId}
+//       ) as organizer_email, category, image_url
+//     `;
+//     console.log("<====updated event====>", event);
+//     if (!event || event.length === 0) {
+//       return NextResponse.json(
+//         { error: "Event not found or unauthorized" },
+//         { status: 404 }
+//       );
+//     }
+//     const formattedEvent = {
+//       ...event[0],
+//       event_date: new Date(event[0].event_date).toISOString(),
+//     };
+//     return NextResponse.json(formattedEvent);
+//   } catch (error: any) {
+//     console.error("<====error====>", error);
+//     if (error.name === "JsonWebTokenError") {
+//       return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+//     }
+//     if (error.name === "TokenExpiredError") {
+//       return NextResponse.json(
+//         { error: "Token expired====>" + error.message },
+//         { status: 401 }
+//       );
+//     }
+//     return NextResponse.json(
+//       { error: "Failed to update event" },
+//       { status: 500 }
+//     );
+//   } finally {
+//     await prisma.$disconnect();
+//   }
+// }
 
-export async function DELETE(request: Request) {
-  try {
-    const authHeader = request.headers.get("Authorization");
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+// export async function DELETE(request: Request) {
+//   try {
+//     const authHeader = request.headers.get("Authorization");
+//     if (!authHeader || !authHeader.startsWith("Bearer ")) {
+//       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+//     }
 
-    const token = authHeader.replace("Bearer ", "");
-    const decoded = jwt.verify(token, JWT_SECRET) as { userId: number };
-    console.log("<====decoded token====>", decoded);
+//     const token = authHeader.replace("Bearer ", "");
+//     const decoded = jwt.verify(token, JWT_SECRET) as { userId: number };
+//     console.log("<====decoded token====>", decoded);
 
-    const body = await request.json();
-    const id = parseInt(body.id);
-    if (!id) {
-      console.log("<====missing id====>", body);
-      return NextResponse.json({ error: "Missing event ID" }, { status: 400 });
-    }
+//     const body = await request.json();
+//     const id = parseInt(body.id);
+//     if (!id) {
+//       console.log("<====missing id====>", body);
+//       return NextResponse.json({ error: "Missing event ID" }, { status: 400 });
+//     }
 
-    // Находим событие, чтобы получить image_url
-    const event = await prisma.$queryRaw`
-      SELECT image_url
-      FROM events
-      WHERE id = ${id} AND organizer_id = ${decoded.userId}
-    `;
-    console.log("<====event to delete====>", event);
+//     // Находим событие, чтобы получить image_url
+//     const event = await prisma.$queryRaw`
+//       SELECT image_url
+//       FROM events
+//       WHERE id = ${id} AND organizer_id = ${decoded.userId}
+//     `;
+//     console.log("<====event to delete====>", event);
 
-    if (!event || event.length === 0) {
-      return NextResponse.json(
-        { error: "Event not found or unauthorized" },
-        { status: 404 }
-      );
-    }
+//     if (!event || event.length === 0) {
+//       return NextResponse.json(
+//         { error: "Event not found or unauthorized" },
+//         { status: 404 }
+//       );
+//     }
 
-    // Удаляем изображение из Cloudinary, если оно есть
-    const imageUrl = event[0].image_url;
-    if (imageUrl) {
-      const publicId = imageUrl.split("/").slice(-2).join("/").split(".")[0]; // Например, "events/123456"
-      try {
-        await cloudinary.uploader.destroy(publicId);
-        console.log("<====cloudinary delete====>", publicId);
-      } catch (cloudinaryError) {
-        console.error("<====cloudinary delete error====>", cloudinaryError);
-        // Не прерываем удаление события, но логируем ошибку
-      }
-    }
+//     // Удаляем изображение из Cloudinary, если оно есть
+//     const imageUrl = event[0].image_url;
+//     if (imageUrl) {
+//       const publicId = imageUrl.split("/").slice(-2).join("/").split(".")[0]; // Например, "events/123456"
+//       try {
+//         await cloudinary.uploader.destroy(publicId);
+//         console.log("<====cloudinary delete====>", publicId);
+//       } catch (cloudinaryError) {
+//         console.error("<====cloudinary delete error====>", cloudinaryError);
+//         // Не прерываем удаление события, но логируем ошибку
+//       }
+//     }
 
-    // Удаляем событие из базы
-    const deletedEvent = await prisma.$queryRaw`
-      DELETE FROM events
-      WHERE id = ${id} AND organizer_id = ${decoded.userId}
-      RETURNING id
-    `;
-    console.log("<====deleted event====>", deletedEvent);
+//     // Удаляем событие из базы
+//     const deletedEvent = await prisma.$queryRaw`
+//       DELETE FROM events
+//       WHERE id = ${id} AND organizer_id = ${decoded.userId}
+//       RETURNING id
+//     `;
+//     console.log("<====deleted event====>", deletedEvent);
 
-    if (!deletedEvent || deletedEvent.length === 0) {
-      return NextResponse.json(
-        { error: "Event not found or unauthorized" },
-        { status: 404 }
-      );
-    }
+//     if (!deletedEvent || deletedEvent.length === 0) {
+//       return NextResponse.json(
+//         { error: "Event not found or unauthorized" },
+//         { status: 404 }
+//       );
+//     }
 
-    return NextResponse.json({ message: "Event deleted successfully" });
-  } catch (error: any) {
-    console.error("<====error====>", error);
-    if (error.name === "JsonWebTokenError") {
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
-    }
-    if (error.name === "TokenExpiredError") {
-      return NextResponse.json(
-        { error: "Token expired====>" + error.message },
-        { status: 401 }
-      );
-    }
-    return NextResponse.json(
-      { error: "Failed to delete event" },
-      { status: 500 }
-    );
-  } finally {
-    await prisma.$disconnect();
-  }
-}
+//     return NextResponse.json({ message: "Event deleted successfully" });
+//   } catch (error: any) {
+//     console.error("<====error====>", error);
+//     if (error.name === "JsonWebTokenError") {
+//       return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+//     }
+//     if (error.name === "TokenExpiredError") {
+//       return NextResponse.json(
+//         { error: "Token expired====>" + error.message },
+//         { status: 401 }
+//       );
+//     }
+//     return NextResponse.json(
+//       { error: "Failed to delete event" },
+//       { status: 500 }
+//     );
+//   } finally {
+//     await prisma.$disconnect();
+//   }
+// }

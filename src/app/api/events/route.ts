@@ -17,21 +17,24 @@
 //     await pool.end();
 //   }
 // }
-import { Pool } from "@neondatabase/serverless";
-import { NextResponse } from "next/server";
-import { PrismaClient } from "@/generated/prisma";
-import jwt from "jsonwebtoken";
-import { v2 as cloudinary } from "cloudinary";
 
-const prisma = new PrismaClient();
-const JWT_SECRET = process.env.JWT_SECRET || "fallback-secret"; // Fallback только для разработки
+// ========================================
 
-// Настройка Cloudinary
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-});
+// import { Pool } from "@neondatabase/serverless";
+// import { NextResponse } from "next/server";
+// import { PrismaClient } from "@/generated/prisma";
+// import jwt from "jsonwebtoken";
+// import { v2 as cloudinary } from "cloudinary";
+
+// const prisma = new PrismaClient();
+// const JWT_SECRET = process.env.JWT_SECRET || "fallback-secret"; // Fallback только для разработки
+
+// // Настройка Cloudinary
+// cloudinary.config({
+//   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+//   api_key: process.env.CLOUDINARY_API_KEY,
+//   api_secret: process.env.CLOUDINARY_API_SECRET,
+// });
 
 // export async function GET(request: Request) {
 //   console.log("<====GET====>");

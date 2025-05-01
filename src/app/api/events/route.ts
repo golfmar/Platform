@@ -405,77 +405,89 @@ export async function DELETE(request: Request) {
   try {
     // 1. Проверка авторизации
     const authHeader = request.headers.get("Authorization");
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // 2. Получаем ID из параметров URL (лучше чем из body для Serverless)
-    const { searchParams } = new URL(request.url);
-    const id = searchParams.get("id");
-
-    if (!id) {
+    if (!authHeader?.startsWith("Bearer ")) {
       return NextResponse.json(
-        { error: "Missing event ID in URL parameters" },
-        { status: 400 }
+        { error: "❌ Требуется авторизация" },
+        { status: 401 }
       );
     }
 
-    // 3. Проверяем токен
-    const token = authHeader.replace("Bearer ", "");
-    const decoded = jwt.verify(token, JWT_SECRET) as { userId: number };
+    // 2. Получаем ID события из URL
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get("id");
 
-    // 4. Находим событие для получения image_url (используем параметризованный запрос)
-    const event = await prisma.$queryRawUnsafe(
-      `SELECT image_url FROM events WHERE id = $1 AND organizer_id = $2`,
-      parseInt(id),
-      decoded.userId
-    );
-
-    if (!event || event.length === 0) {
+    // 3. Валидация ID
+    if (!id || isNaN(parseInt(id))) {
       return NextResponse.json(
-        { error: "Event not found or access denied" },
+        { error: "❌ Неверный ID события" },
+        { status: 400 }
+      );
+    }
+    const eventId = parseInt(id);
+
+    // 4. Проверяем токен
+    const token = authHeader.replace("Bearer ", "");
+    let userId: number;
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET) as { userId: number };
+      userId = decoded.userId;
+    } catch (err) {
+      return NextResponse.json(
+        { error: "❌ Недействительный токен" },
+        { status: 401 }
+      );
+    }
+
+    // 5. Находим событие (проверяем права доступа)
+    const event = await prisma.event.findUnique({
+      where: { id: eventId },
+      select: {
+        image_url: true,
+        organizer_id: true,
+      },
+    });
+
+    if (!event) {
+      return NextResponse.json(
+        { error: "❌ Событие не найдено" },
         { status: 404 }
       );
     }
 
-    // 5. Удаляем изображение из Cloudinary (если есть)
-    const imageUrl = event[0].image_url;
-    if (imageUrl) {
-      const publicId = imageUrl.split("/").slice(-2).join("/").split(".")[0];
+    if (event.organizer_id !== userId) {
+      return NextResponse.json(
+        { error: "❌ Нет прав на удаление" },
+        { status: 403 }
+      );
+    }
+
+    // 6. Удаляем изображение из Cloudinary (если есть)
+    if (event.image_url) {
+      const publicId = event.image_url
+        .split("/")
+        .slice(-2)
+        .join("/")
+        .split(".")[0];
+
       try {
         await cloudinary.uploader.destroy(publicId);
-      } catch (e) {
-        console.error("Cloudinary delete error:", e);
+      } catch (err) {
+        console.error("⚠️ Ошибка удаления из Cloudinary:", err);
       }
     }
 
-    // 6. Удаляем событие (параметризованный запрос)
-    await prisma.$executeRawUnsafe(
-      `DELETE FROM events WHERE id = $1 AND organizer_id = $2`,
-      parseInt(id),
-      decoded.userId
-    );
+    // 7. Удаляем событие из базы
+    await prisma.event.delete({
+      where: { id: eventId },
+    });
 
     return NextResponse.json(
-      { success: true, message: "Event deleted successfully" },
+      { success: true, message: "✅ Событие удалено" },
       { status: 200 }
     );
-  } catch (error: any) {
-    console.error("DELETE error:", error);
-
-    // Специфичные ошибки JWT
-    if (error.name === "JsonWebTokenError") {
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
-    }
-    if (error.name === "TokenExpiredError") {
-      return NextResponse.json({ error: "Token expired" }, { status: 401 });
-    }
-
-    // Общая ошибка сервера
-    return NextResponse.json(
-      { error: error.message || "Internal server error" },
-      { status: 500 }
-    );
+  } catch (error) {
+    console.error("🔥 Ошибка при удалении:", error);
+    return NextResponse.json({ error: "❌ Ошибка сервера" }, { status: 500 });
   } finally {
     await prisma.$disconnect();
   }

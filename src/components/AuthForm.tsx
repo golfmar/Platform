@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Input from "./ui/Input/Input";
 import Button from "./ui/Button/Button";
+import Image from "next/image";
 
 interface AuthFormProps {
   onRegister: (email: string, password: string) => Promise<void>;
@@ -14,7 +15,7 @@ export default function AuthForm({ onRegister, onLogin }: AuthFormProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
-
+  const [eye, setEye] = useState<boolean>(false);
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -38,12 +39,24 @@ export default function AuthForm({ onRegister, onLogin }: AuthFormProps) {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
         />
-        <Input
-          typeInput="password"
-          data="Password:"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
+        <div className="relative">
+          <Input
+            typeInput={`${eye ? "text" : "password"}`}
+            data="Password:"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+          <Image
+            src="/assets/svg/eye.svg"
+            alt="Logo"
+            width={20}
+            height={20}
+            className="absolute right-2 top-1/2 transform -translate-y-1/2 opacity-50 hover:opacity-100 cursor-pointer transition-all duration-200 ease-in-out"
+            onClick={() => {
+              setEye(!eye);
+            }}
+          />
+        </div>
         <Button type="submit" buttonText={isLogin ? "Login" : "Register"} />
         <div className="text-center mt-2 text-sm text-gray-500">
           {isLogin ? "Don't have an account?" : "Already have an account?"}{" "}

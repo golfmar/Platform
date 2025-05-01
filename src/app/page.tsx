@@ -137,7 +137,7 @@ export default function Home() {
       const response = await fetch(`/api/events?${params}`, { headers });
       if (!response.ok) throw new Error("Failed to fetch events");
       const { events: data, totalCount: count } = await response.json();
-      console.log("Events fetched:", data, "Total count:", count);
+      console.log("<====Events fetched:====>", data, "Total count:", count);
       setEvents(data);
       setTotalCount(count);
     } catch (err: any) {

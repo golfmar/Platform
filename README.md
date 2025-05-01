@@ -30,6 +30,87 @@ npm run dev
 npx ts-node src/test-prisma.ts
 
 <!-- ==================== -->
+Подключитесь к Neon (используйте ваш DATABASE_URL):
+
+psql "postgres://neondb_owner:npg_8rEO1Mtdxozv@ep-shiny-wind-a26vukin-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require"
+
+
+(Если psql не найден, установите PostgreSQL или используйте облачный psql)
+
+<!-- ==================== -->
+Проверьте наличие psql на вашей машине:
+Сначала убедитесь, что PostgreSQL установлен и psql.exe доступен. Вы можете проверить это:
+
+
+Get-Command psql
+<!-- ==================== -->
+ 1. Проверить данные в старой базе (Docker)
+docker exec -it postgis-db psql -U postgres -d events_platform -c "
+  SELECT 
+    id, 
+    title, 
+    ST_AsText(location) as coords 
+  FROM events 
+  LIMIT 1;"
+
+
+ 2. Добавить колонку location в Neon
+psql "postgres://neondb_owner:npg_8rEO1Mtdxozv@ep-shiny-wind-a26vukin-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require" -c "
+  ALTER TABLE events 
+  ADD COLUMN IF NOT EXISTS location geography(POINT, 4326);"
+
+ 3. Экспорт данных из Docker
+docker exec -it postgis-db bash -c "
+  psql -U postgres -d events_platform -c \"
+    COPY (
+      SELECT 
+        id, title, description, 
+        event_date, created_at, 
+        organizer_id, category, image_url,
+        ST_X(location::geometry) as lng,
+        ST_Y(location::geometry) as lat
+      FROM events
+    ) TO '/tmp/events.csv' WITH CSV HEADER;\"
+  && docker cp postgis-db:/tmp/events.csv ./events.csv"
+
+
+4. Импорт в Neon
+psql "postgres://neondb_owner:npg_8rEO1Mtdxozv@ep-shiny-wind-a26vukin-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require" -c "
+  CREATE TEMP TABLE temp_import(
+    id integer,
+    title text,
+    description text,
+    event_date timestamp,
+    created_at timestamp,
+    organizer_id integer,
+    category text,
+    image_url text,
+    lng float,
+    lat float
+  );
+  COPY temp_import FROM STDIN WITH CSV HEADER;
+  \. events.csv
+  INSERT INTO events 
+  SELECT 
+    id, title, description, 
+    event_date, created_at, 
+    organizer_id, category, image_url,
+    ST_SetSRID(ST_MakePoint(lng, lat), 4326)::geography
+  FROM temp_import;"
+
+
+5. Проверка в Neon
+psql "postgres://neondb_owner:npg_8rEO1Mtdxozv@ep-shiny-wind-a26vukin-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require" -c "
+  SELECT 
+    id, 
+    title, 
+    ST_AsText(location) as coords 
+  FROM events 
+  LIMIT 3;"
+
+1. Установка PostGIS в Neon
+psql "postgres://neondb_owner:npg_8rEO1Mtdxozv@ep-shiny-wind-a26vukin-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require" -c "CREATE EXTENSION IF NOT EXISTS postgis;"
+<!-- ==================== -->
 
 Алгоритм
 Установка Docker и PostGIS:

@@ -403,99 +403,79 @@ export async function PUT(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    // 1. Проверка заголовка авторизации
     const authHeader = request.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const token = authHeader.replace("Bearer ", "");
+    const decoded = jwt.verify(token, JWT_SECRET) as { userId: number };
+    console.log("<====decoded token====>", decoded);
+
+    const body = await request.json();
+    const id = parseInt(body.id);
+    if (!id) {
+      console.log("<====missing id====>", body);
+      return NextResponse.json({ error: "Missing event ID" }, { status: 400 });
+    }
+
+    // Находим событие, чтобы получить image_url
+    const event = await prisma.$queryRaw`
+      SELECT image_url
+      FROM events
+      WHERE id = ${id} AND organizer_id = ${decoded.userId}
+    `;
+    console.log("<====event to delete====>", event);
+
+    if (!event || event.length === 0) {
       return NextResponse.json(
-        { error: "Authorization header missing or invalid" },
-        { status: 401 }
+        { error: "Event not found or unauthorized" },
+        { status: 404 }
       );
     }
 
-    // 2. Извлечение и валидация ID события
-    const { searchParams } = new URL(request.url);
-    const idParam = searchParams.get("id");
-
-    if (!idParam) {
-      return NextResponse.json(
-        { error: "Event ID parameter is required" },
-        { status: 400 }
-      );
-    }
-
-    const eventId = parseInt(idParam);
-    if (isNaN(eventId) || eventId <= 0) {
-      return NextResponse.json(
-        { error: "Invalid event ID format" },
-        { status: 400 }
-      );
-    }
-
-    // 3. Верификация JWT токена
-    const token = authHeader.replace("Bearer ", "").trim();
-    let userId: number;
-
-    try {
-      const decoded = jwt.verify(token, JWT_SECRET) as { userId: number };
-      userId = decoded.userId;
-    } catch (err) {
-      return NextResponse.json(
-        { error: "Invalid or expired token" },
-        { status: 401 }
-      );
-    }
-
-    // 4. Проверка существования события и прав доступа
-    const event = await prisma.event.findUnique({
-      where: { id: eventId },
-      select: {
-        image_url: true,
-        organizer_id: true,
-      },
-    });
-
-    if (!event) {
-      return NextResponse.json({ error: "Event not found" }, { status: 404 });
-    }
-
-    if (event.organizer_id !== userId) {
-      return NextResponse.json(
-        { error: "Unauthorized to delete this event" },
-        { status: 403 }
-      );
-    }
-
-    // 5. Удаление изображения из Cloudinary (если есть)
-    if (event.image_url) {
+    // Удаляем изображение из Cloudinary, если оно есть
+    const imageUrl = event[0].image_url;
+    if (imageUrl) {
+      const publicId = imageUrl.split("/").slice(-2).join("/").split(".")[0]; // Например, "events/123456"
       try {
-        const urlParts = event.image_url.split("/");
-        const publicId = urlParts.slice(-2).join("/").split(".")[0];
-
         await cloudinary.uploader.destroy(publicId);
-      } catch (err) {
-        console.error("Cloudinary deletion error:", err);
-        // Продолжаем удаление даже если не удалили изображение
+        console.log("<====cloudinary delete====>", publicId);
+      } catch (cloudinaryError) {
+        console.error("<====cloudinary delete error====>", cloudinaryError);
+        // Не прерываем удаление события, но логируем ошибку
       }
     }
 
-    // 6. Удаление события из базы данных
-    await prisma.event.delete({
-      where: { id: eventId },
-    });
+    // Удаляем событие из базы
+    const deletedEvent = await prisma.$queryRaw`
+      DELETE FROM events
+      WHERE id = ${id} AND organizer_id = ${decoded.userId}
+      RETURNING id
+    `;
+    console.log("<====deleted event====>", deletedEvent);
 
-    // 7. Успешный ответ
+    if (!deletedEvent || deletedEvent.length === 0) {
+      return NextResponse.json(
+        { error: "Event not found or unauthorized" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({ message: "Event deleted successfully" });
+  } catch (error: any) {
+    console.error("<====error====>", error);
+    if (error.name === "JsonWebTokenError") {
+      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+    }
+    if (error.name === "TokenExpiredError") {
+      return NextResponse.json(
+        { error: "Token expired====>" + error.message },
+        { status: 401 }
+      );
+    }
     return NextResponse.json(
-      {
-        success: true,
-        message: "Event deleted successfully",
-        deletedId: eventId,
-      },
-      { status: 200 }
-    );
-  } catch (error) {
-    console.error("Server error during deletion:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
+      { error: "Failed to delete event" },
       { status: 500 }
     );
   } finally {
